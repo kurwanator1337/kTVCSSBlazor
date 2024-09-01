@@ -1,0 +1,69 @@
+﻿@page "/camhistory/{PlayerID}"
+@using kTVCSSBlazor.Db.Interfaces
+@using kTVCSSBlazor.Db.Models.Players
+@inject IPlayers repo
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+
+@if (AuthProvider.CurrentUser.Id == Convert.ToInt32(PlayerID))
+{
+    <MudStack Style="margin-bottom: 2%">
+        <MudAlert Severity="Severity.Error">
+            Вам был выдан CAM статус! Теперь Вам необходимо записывать каждую вашу игру на любое из видеоустройсв (камера телефона, фотоаппарат либо иное устройство записи видео).
+        </MudAlert>
+        <MudAlert Severity="Severity.Info">
+            Это означает, что перед тем, как сыграть матч, Вам необходимо вести запись, начиная с запуска игры, заканчивая моментом окончания матча.
+        </MudAlert>
+        <MudAlert Severity="Severity.Warning">
+            На записи должны быть видны: руки (минимум должна быть видна рука, держащая мышь), клавиатуру и монитор. Запись матча только через OBS не разрешается!
+        </MudAlert>
+        <MudAlert Severity="Severity.Warning">
+            Если у Вас нет возможности сделать запись, удовлетворяющей требованиям выше, то играть на проекте будет временно запрещено.
+        </MudAlert>
+        <MudAlert Severity="Severity.Info">
+            Запись матча необходимо прикладывать до полуночи каждого дня во избежании получения блокировки.
+        </MudAlert>
+    </MudStack>
+}
+
+<MudGrid Justify="Justify.Center">
+    @if (cams.Any())
+    {
+        @foreach (var i in cams)
+        {
+            <MudItem xs="12" md="12">
+                <MudPaper Elevation="4" Class="pa-4">
+                    <MudStack Row>
+                        @if (string.IsNullOrEmpty(i.VideoUrl))
+                        {
+                            <MudAlert Severity="Severity.Error">Матч #@i.MatchId</MudAlert>
+                        }
+                        else
+                        {
+                            <MudAlert Severity="Severity.Success">Матч #@i.MatchId</MudAlert>
+                        }
+                        <MudTextField @bind-Value="i.VideoUrl" Label="Ссылка на видеозапись матча" Variant="Variant.Text"></MudTextField>
+                        <MudButton OnClick="@(() => { repo.SaveCam(i); })" Disabled="@(AuthProvider.CurrentUser.Id != Convert.ToInt32(PlayerID))" StartIcon="@Icons.Filled.Save" Variant="Variant.Outlined">Сохранить</MudButton>
+                    </MudStack>
+                </MudPaper>
+            </MudItem>
+        }
+    }
+    else
+    {
+        <MudAlert Severity="Severity.Error">Записей пока нет</MudAlert>
+    }
+</MudGrid>
+
+@code {
+    [Parameter]
+    public string PlayerID { get; set; }
+
+    private List<Cam> cams = new();
+
+    protected override void OnInitialized()
+    {
+        cams = repo.GetCamHistory(Convert.ToInt32(PlayerID));
+
+        base.OnInitialized();
+    }
+}

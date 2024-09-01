@@ -1,0 +1,28 @@
+﻿@using kTVCSSBlazor.Db.Models.Players
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" sm="@fieldWidthA">
+        <MudPaper Style="text-align: center; justify-content: center;align-content:center;align-items:center;min-height:260px" Class="py-4 pa-4">
+            <div style="width:100%;height:100%;overflow: auto;display: flex;justify-content: center;align-items: center;" class="wrap"><text style="overflow-y: auto;inline-size: 100%;overflow-wrap: break-word;">@((MarkupString)player.Description)</text></div>
+        </MudPaper>
+    </MudItem>
+    @if (player.Achiviments.Length > 0)
+    {
+        <MudItem xs="12" sm="4">
+            <MudPaper Style="min-height:260px" Class="py-4 pa-4">
+                @((MarkupString)player.Achiviments)
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+@code {
+    [Parameter]
+    public PlayerInfo player { get; set; }
+
+    [Parameter]
+    public string playerRelationshipBlockHeight { get; set; }
+
+    [Parameter]
+    public int fieldWidthA { get; set; }
+}

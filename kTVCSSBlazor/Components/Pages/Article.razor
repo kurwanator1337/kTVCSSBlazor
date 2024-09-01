@@ -1,0 +1,121 @@
+﻿@page "/article/{guid}"
+@using Dapper
+@using MudBlazor
+@using System.Data.SqlClient
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IConfiguration config
+@inject NavigationManager NavigationManager
+
+@if (ready)
+{
+    <PageTitle>kTVCSS @@ @article.TITLE</PageTitle>
+
+    <MudContainer MaxWidth="MaxWidth.Medium">
+        <MudPaper Elevation="2" Class="pa-4 my-4">
+            <MudText Typo="Typo.h4" GutterBottom="true">
+                @article.TITLE
+            </MudText>
+
+            <MudText Typo="Typo.body2" Color="Color.Secondary" GutterBottom="true">
+                @DateTime.Parse(article.DATETIME.ToString()).ToLongDateString(), @article.VIEWS просмотров
+            </MudText>            
+
+            <MudImage Style="width: 100%" Src="@article.HEADERPICTUREURL.ToString()" Alt="" Class="my-4" Width="300" />
+
+            <MudText Typo="Typo.body1" GutterBottom="true">
+                @((MarkupString)@article.FULLTEXTHTML)
+            </MudText>
+
+            <MudDivider Class="my-4" />
+            <MudText Typo="Typo.h6" GutterBottom="true">
+                Комментарии
+            </MudText>
+
+            @if (coms is not null)
+            {
+                @if (coms.Count == 0)
+                {
+                     <MudText Typo="Typo.body1">
+                        Комментарии не найдены. Будьте первым, кто оставит комментарий!
+                    </MudText>
+                }
+                else
+                {
+                    @foreach (var item in coms)
+                    {
+                        <MudPaper Elevation="0" Class="pa-3 my-2">
+                            <MudText Typo="Typo.body2" Color="Color.Tertiary" GutterBottom="true">
+                                @item.USER - @DateTime.Parse(item.DATETIME.ToString()).ToLongDateString() @DateTime.Parse(item.DATETIME.ToString()).ToShortTimeString()
+                            </MudText>
+
+                            <div style="width: 100%;white-space: normal;overflow-wrap: break-word;">
+                                <MudText Typo="Typo.body1">
+                                    @item.TEXT
+                                </MudText>
+                            </div>
+                        </MudPaper>
+                    }
+                }
+            }
+
+            <MudPaper Elevation="2" Class="pa-4 my-2">
+                <MudText Typo="Typo.h6" GutterBottom="true">
+                    Оставить комментарий
+                </MudText>
+
+                <MudTextField @bind-Value=@text T="string" Label="Ваш комментарий" Variant="Variant.Filled" FullWidth="true" Lines="5" />
+                <MudButton OnClick="Send" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">
+                    Отправить
+                </MudButton>
+            </MudPaper>
+        </MudPaper>
+    </MudContainer>
+}
+
+@code {
+    [Parameter]
+    public string guid { get; set; }
+
+    private dynamic article;
+    private List<dynamic> coms = new List<dynamic>();
+    private string text = "";
+
+    bool ready = false;
+
+    private void Send()
+    {
+        using (var sql = new SqlConnection(config.GetConnectionString("db")))
+        {
+            sql.Open();
+
+            DynamicParameters dynamicParameters = new();
+            dynamicParameters.Add("guid", guid.ToUpper());
+            dynamicParameters.Add("user", AuthProvider.CurrentUser.Username);
+            dynamicParameters.Add("text", text);
+
+            sql.Execute("AddComToArticle", dynamicParameters, commandType: System.Data.CommandType.StoredProcedure);
+
+            coms = new();
+            coms.AddRange(sql.Query($"SELECT * FROM FeedCommentaries WHERE GUID = '{guid.ToUpper()}' ORDER BY DATETIME ASC"));
+            text = "";
+
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        using (var sql = new SqlConnection(config.GetConnectionString("db")))
+        {
+            sql.Open();
+
+            article = sql.QueryFirst($"SELECT * FROM Feed WHERE GUID = '{guid.ToUpper()}'");
+
+            coms.AddRange(sql.Query($"SELECT * FROM FeedCommentaries WHERE GUID = '{guid.ToUpper()}' ORDER BY DATETIME ASC"));
+
+            sql.Execute($"UPDATE Feed SET VIEWS = VIEWS + 1 WHERE guid = '{guid.ToUpper()}'");
+
+            ready = true;
+        }
+    }
+}

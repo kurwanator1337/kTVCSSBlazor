@@ -1,0 +1,25 @@
+﻿@page "/steamidbinding"
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject Db.Interfaces.IPlayers repo
+
+<h3>SteamIDBinding</h3>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" md="12">
+        <MudText Align="Align.Center" Typo="Typo.h2">Привязка SteamID к проекту</MudText>
+    </MudItem>
+    <MudItem xs="12" md="12">
+        <video style="height: 480px" src="/videos/steam_binding.mp4" />
+    </MudItem>
+</MudGrid>
+
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" md="8">
+        <MudText Typo="Typo.body1">@repo.GetAfterSignupMessage(AuthProvider.CurrentUser.Id)</MudText>
+    </MudItem>
+</MudGrid>
+
+@code {
+
+}

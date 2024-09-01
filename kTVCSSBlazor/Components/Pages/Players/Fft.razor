@@ -1,0 +1,84 @@
+﻿@page "/fft"
+@using kTVCSSBlazor.Data
+@using kTVCSSBlazor.Db.Models
+@inject Db.Interfaces.IPlayers repo
+@inject IJSRuntime JS
+@inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
+@inject IHttpContextAccessor httpContextAccessor
+
+<PageTitle>kTVCSS @@ FFT Игроки</PageTitle>
+
+<kTVCSSBlazor.Components.Layout.Bar />
+
+<MudDataGrid Items="@dataSource" FilterCaseSensitivity=DataGridFilterCaseSensitivity.Ignore Hover="true" Virtualize="true" Height="88svh" FilterMode=DataGridFilterMode.ColumnFilterMenu Filterable="false" SortMode="@SortMode.None" Groupable="false">
+    <Columns>
+        @if (!isMobile)
+        {
+            <TemplateColumn Title="" CellStyle="margin-left: 0;width: 15px" Filterable="false">
+                <CellTemplate>
+                    <img style="display: flex;justify-content: center;width: 28px;" src="@context.Item.RankName" />
+                </CellTemplate>
+            </TemplateColumn>
+        }
+        <TemplateColumn Title="Ник">
+            <CellTemplate>
+                <MudLink Color="Color.Inherit" Href="@GetUserLink(context.Item.ID)">@context.Item.Name</MudLink>
+            </CellTemplate>
+        </TemplateColumn>
+        <PropertyColumn Property="x => x.KDR" CellStyle="@cellWidth" />
+        <PropertyColumn Property="x => x.HSR" CellStyle="@cellWidth" />
+        <PropertyColumn Property="x => x.AVG" CellStyle="@cellWidth" />
+        <PropertyColumn Property="x => x.MatchesTotal" Title="Матчи" CellStyle="@cellWidth" />
+        <PropertyColumn Property="x => x.Winrate" Title="Винрейт" CellStyle="@cellWidth" />
+        <PropertyColumn Property="x => x.PreferredRole" Title="Предп. роль" />
+        <PropertyColumn Property="x => x.LastTeam" Title="Посл. команда" />
+        <PropertyColumn Property="x => x.PrimeTime" Title="Прайм-тайм" />
+        <PropertyColumn Property="x => x.StartPlayYear" Title="Начало карьеры" />
+        <TemplateColumn Title="Наличие микрофона">
+            <CellTemplate>
+                <MudCheckBox ReadOnly=true Value="@context.Item.Microphone" Color="Color.Warning"></MudCheckBox>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Наличие тимспика">
+            <CellTemplate>
+                <MudCheckBox ReadOnly=true Value="@context.Item.TeamSpeak" Color="Color.Success"></MudCheckBox>
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Наличие дискорда">
+            <CellTemplate>
+                <MudCheckBox ReadOnly=true Value="@context.Item.Discord" Color="Color.Info"></MudCheckBox>
+            </CellTemplate>
+        </TemplateColumn>
+    </Columns>
+</MudDataGrid>
+
+@code {
+    private List<Db.Models.Players.Fft> dataSource = new();
+    private bool isMobile = false;
+    private string cellWidth = "width: 50px";
+
+    private string GetUserLink(int id)
+    {
+        return $"/player/{id}";
+    }
+
+    protected override void OnInitialized()
+    {
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            isMobile = true;
+            cellWidth = "";
+        }
+
+        base.OnInitialized();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        JS.InvokeVoidAsync("showLoadBar");
+        dataSource.AddRange(repo.GetFftList());
+        JS.InvokeVoidAsync("hideLoadBar");
+        base.OnAfterRender(firstRender);
+    }
+}

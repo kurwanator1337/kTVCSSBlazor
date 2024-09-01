@@ -1,0 +1,118 @@
+﻿@page "/mybestmatches"
+@using kTVCSSBlazor.Db.Models.Matches
+@inject Db.Interfaces.IMatches repo
+@inject IHttpContextAccessor httpContextAccessor
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+
+<kTVCSSBlazor.Components.Layout.Bar display="block"/>
+
+<PageTitle>kTVCSS @@ Мои лучшие матчи</PageTitle>
+
+@if (dataSource.Any())
+{
+    @if (!isMobile)
+    {
+        <MudDataGrid Style="background-color: #1e1f25;" T=TotalMatch Bordered=false RowStyle="border: 0px" RowStyleFunc="@_rowStyleFunc" Items="@dataSource" FilterCaseSensitivity=DataGridFilterCaseSensitivity.Ignore Virtualize="true" Hover="true" FilterMode=DataGridFilterMode.ColumnFilterMenu Height="88svh" Filterable="false" SortMode="@SortMode.None" Groupable="false">
+            <Columns>
+                <TemplateColumn CellStyle="width:100%;" Style="width:100%;" Title="" HeaderStyle="display: none;width:100%" Filterable="false">
+                    <CellTemplate>
+                        <a href="/match/@context.Item.Id">
+                            <div style="display: flex; flex-direction: column;height: 100%;align-items: center;justify-content: space-evenly;">
+                                @if (context.Item.MatchDate == "LIVE")
+                                {
+                                    <div class="mud-typography-h5" style="color: red;font-weight: 600;width:100%;text-align:center">@context.Item.MatchDate</div>
+                                }
+                                else
+                                {
+                                    <div class="mud-typography-h5" style="font-weight: 600;width:100%;text-align:center">@context.Item.MatchDate</div>
+                                }
+                                <div style="display: flex;flex-direction:row;width: 100%;align-items: center;justify-content: space-between;">
+                                    <div class="mud-typography-h5" style="font-weight: 600;text-align: center;width: 45%;">@context.Item.ATeam</div>
+                                    <div class="mud-typography-h5" style="font-weight: 600;display:flex;text-align:center;">@context.Item.Score</div>
+                                    <div class="mud-typography-h5" style="font-weight: 600;text-align: center;width: 45%;">@context.Item.BTeam</div>
+                                </div>
+                                <div style="font-weight: 600;" class="mud-typography-h5">@context.Item.MapName</div>
+                            </div>
+                        </a>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    }
+    else
+    {
+        <MudDataGrid RowStyleFunc="@_rowStyleFuncMobile" T=TotalMatch Bordered=false Items="@dataSource" FilterCaseSensitivity=DataGridFilterCaseSensitivity.Ignore Virtualize="true" Hover="true" FilterMode=DataGridFilterMode.ColumnFilterMenu Height="88svh" Filterable="false" SortMode="@SortMode.None" Groupable="false">
+            <Columns>
+                <PropertyColumn Property="x => x.MatchDate" Title="Дата"/>
+                <PropertyColumn Property="x => x.ATeam" Title="Команда"/>
+                <PropertyColumn Property="x => x.Score" Title="Результат"/>
+                <PropertyColumn Property="x => x.BTeam" Title="Команда"/>
+                <PropertyColumn Property="x => x.MapName" Title="Карта"/>
+            </Columns>
+        </MudDataGrid>
+    }
+}
+else
+{
+    <MudAlert Severity="Severity.Error">У Вас пока не было матчей, где Вы были MVP!</MudAlert>
+}
+
+<style>
+    .mud-table-cell {
+        display: table-cell;
+        padding: 16px;
+        font-size: .875rem;
+        text-align: start;
+        font-weight: 400;
+        line-height: 1.43;
+        border-bottom: 0px solid var(--mud-palette-table-lines);
+        letter-spacing: .01071em;
+        vertical-align: inherit;
+    }
+
+    .row-ktv {
+        background-color: rgb(0 0 0 / 50%);
+    }
+
+        .row-ktv:hover {
+            background-color: rgb(0 0 0 / 65%);
+        }
+
+    .mud-table-hover .mud-table-container .mud-table-root .mud-table-body .mud-table-row:hover {
+        background-color: rgb(0 0 0 / 35%);
+    }
+</style>
+
+@code {
+    private List<TotalMatch> dataSource = new List<TotalMatch>();
+    private bool isMobile { get; set; }
+
+    private Func<TotalMatch, int, string> _rowStyleFunc => (x, i) => { return "display: flex; margin-bottom: 0.5%;background-image: url(/images/mapsbackgrs/" + x.MapName + ".jpg);height: 130px;background-size: 100% auto;background-color: rgb(0 0 0 / 50%); background-position: center; background-blend-mode: multiply;"; };
+
+    private Func<TotalMatch, int, string> _rowStyleFuncMobile => (x, i) => { return "background-image: url(/images/mapsbackgrs/" + x.MapName + ".jpg);background-size: 150% auto;background-color: rgb(0 0 0 / 50%); background-position: center; background-blend-mode: multiply;"; };
+
+    protected override Task OnInitializedAsync()
+    {
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            isMobile = true;
+        }
+
+        return base.OnInitializedAsync();
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            JS.InvokeVoidAsync("showLoadBar");
+            dataSource.AddRange(repo.GetMyBestMatches(AuthProvider.CurrentUser.SteamId));
+            JS.InvokeVoidAsync("hideLoadBar");
+        }
+
+        return base.OnAfterRenderAsync(firstRender);
+    }
+
+}

@@ -1,0 +1,145 @@
+﻿@page "/editteamprofile"
+@using CurrieTechnologies.Razor.SweetAlert2
+@using kTVCSSBlazor.Db.Models.Teams
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@inject Db.Interfaces.ITeams repo
+@inject Db.Interfaces.IAdmins admin
+@inject NavigationManager NavigationManager
+@inject SweetAlertService Swal
+
+
+<PageTitle>kTVCSS @@ Редактирование профиля команды</PageTitle>
+
+<MudPaper Class="px-4 pt-4">
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="12">
+            <MudText Typo=Typo.h4 Align="Align.Center">Редактирование профиля команды</MudText>
+        </MudItem>
+    </MudGrid>
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="4">
+            <MudTextField T="string" Counter="16" MaxLength="16" Immediate="true" Label="Название команды" Variant="Variant.Text" @bind-Value="@profile.Name" />
+        </MudItem>
+    </MudGrid>
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="4">
+            <MudTextField AutoGrow Lines="6" T="string" Immediate="true" Label="Описание команды" Variant="Variant.Text" @bind-Value="@profile.Description" />
+        </MudItem>
+    </MudGrid>
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="4">
+            <MudFileUpload style="align-items: center;" T="IBrowserFile" FilesChanged="UploadAvatar">
+                <ButtonTemplate>
+                    <MudFab HtmlTag="label"
+                            Color="Color.Primary"
+                            Icon="@Icons.Material.Filled.Image"
+                            Label="Загрузить новый аватар (128x128 или 256x256)"
+                            for="@context.Id" />
+                </ButtonTemplate>
+            </MudFileUpload>
+        </MudItem>
+    </MudGrid>
+    <MudGrid Justify="Justify.Center">
+        <MudItem style="display: flex;justify-content: center;" xs="12" md="4">
+            <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
+                <MudButton OnClick=RemoveAvatar StartIcon="@Icons.Material.Filled.RemoveCircle" IconColor="Color.Error">Удалить аватар</MudButton>
+            </MudButtonGroup>
+        </MudItem>
+    </MudGrid>
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="4">
+            <MudButton OnClick="() => { Save(); }" FullWidth Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Сохранить</MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    private TeamEdit profile { get; set; } = new();
+    private bool isAdmin = false;
+
+    async Task ShowAlert(string caption, string text, int time, SweetAlertIcon icon, Func<Task> customCallback)
+    {
+        var options = new SweetAlertOptions
+            {
+                TimerProgressBar = true,
+                Timer = time,
+                Title = caption,
+                Text = text,
+                Icon = icon,
+                WillClose = new SweetAlertCallback(async () =>
+                {
+                    await customCallback();
+                })
+            };
+
+        await Swal.FireAsync(options);
+    }
+
+    private async Task RemoveAvatar()
+    {
+        profile.Url = $"/images/logo_ktv.png";
+
+        await ShowAlert("Предупреждение", "Аватар был успешно удален! Не забудьте сохранить изменения", 3000, SweetAlertIcon.Info, null);
+    }
+
+    private async Task UploadAvatar(IBrowserFile file)
+    {
+        if (!file.ContentType.Contains("png") && !file.ContentType.Contains("jpeg"))
+        {
+            await ShowAlert("Ошибка", "Загружаемый файл должен быть в формате png или jpg!", 3000, SweetAlertIcon.Error, null);
+            //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+            //snackbar.Add("Загружаемый файл должен быть в формате png!", Severity.Error);
+            return;
+        }
+
+        if (file.Size > 512000)
+        {
+            await ShowAlert("Ошибка", "Загружаемый файл должен быть менее 500 КБайт!", 3000, SweetAlertIcon.Error, null);
+            return;
+        }
+
+        string guid = Guid.NewGuid().ToString();
+
+        string fileName = Path.Combine("wwwroot", "images", "logos", $"{guid}.png");
+
+        var memoryStream = new MemoryStream();
+        await file.OpenReadStream().CopyToAsync(memoryStream);
+
+        await using (var fs = new FileStream(fileName, FileMode.Create, FileAccess.Write))
+        {
+            memoryStream.WriteTo(fs);
+        }
+
+        profile.Url = $"/images/logos/{guid}.png";
+
+        await ShowAlert("Успех", "Новая шапка профиля была успешно загружена! Не забудьте сохранить изменения!", 3000, SweetAlertIcon.Success, null);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        profile = repo.GetTeamForEdit(Convert.ToInt32(AuthProvider.CurrentUser.TeamID));
+
+        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+    }
+
+    private async Task Save()
+    {
+        int result = repo.SaveTeam(profile);
+
+        if (result == 1)
+        {
+            await ShowAlert("Успех", "Профиль команды был успешно изменен!", 2000, SweetAlertIcon.Success, async () =>
+                {
+                    NavigationManager.NavigateTo($"/team/" + profile.Id, false);
+                });            
+        }
+        else
+        {
+            await ShowAlert("Успех", "Профиль команды был успешно изменен! Однако название команды изменено не было.", 2000, SweetAlertIcon.Warning, async () =>
+                {
+                    NavigationManager.NavigateTo($"/team/" + profile.Id, false);
+                });
+        }
+    }
+}

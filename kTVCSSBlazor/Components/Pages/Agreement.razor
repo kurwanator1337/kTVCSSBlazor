@@ -1,0 +1,65 @@
+﻿@page "/Agreement"
+@using CurrieTechnologies.Razor.SweetAlert2
+@using kTVCSSBlazor.Db.Interfaces
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IPlayers repo
+@inject NavigationManager NavigationManager
+@inject SweetAlertService Swal
+
+<PageTitle>kTVCSS @@ Соглашение</PageTitle>
+
+<MudText Align="Align.Center" Typo="Typo.h3">Соглашение</MudText>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" md="8">
+        <MudPaper Class="pa-4">
+            <MudText Align="Align.Center" Color="Color.Warning">
+                Вы собираетесь впервые начать поиск микса на нашем проекте! Прежде чем мы начнем подбор игры, Вам необходимо прочитать краткий свод правил и предупреждений по игре на нашем проекте (это займет у Вас пару минут).
+            </MudText>
+            <MudText Color="Color.Default">
+                <p>1. Это проект, на котором играют игроки, которые, в основном, хотят побеждать. Если Вы решили пофаниться у нас на проекте, то лучше не теряйте зря время, чтобы Вы не получили от игроков проекта негативный отзыв, а также блокировку от администрации проекта.</p>
+                <p>2. Мы рады новым игрокам, однако понимаем, что Ваш уровень игры может не соответствовать ожиданиям некоторых игроков проекта. В случаях, если на Вас начался шквал критики, то Вы можете подать жалобу на игроков и они будут рассмотрены.</p>
+                <p>3. Матчи бывают разные - легкие и тяжелые. Во втором случае у некоторых игроков бывает лопается терпение, начинают шалить нервы. Администрация и модераторы проекта относятся негативно к попыткам руина игры - за это можно получить бан.</p>
+                <p>4. Для комфортного взаимодействия с командой игроки проекта используют TeamSpeak сервер проекта (ts.ktvcss.ru). Если Вы никогда о таком не слышали или не желаете туда заходить, то пользуйтесь хотя бы голосовым или текстовым чатами для информирования товарищей по команде.</p>
+                <p>5. Администрация проекта не снимает блокировку за токсичное поведение, за выход с микса или за то, что Вы не зашли на микс по разным причинам (даже если свет выключили и так далее) и за прочие причины, указанные на странице найденного микса.</p>
+            </MudText>
+            <MudText Align="Align.Center" Color="Color.Error">
+                Если Вы все прочитали, то нажмите кнопку "Согласен".
+            </MudText>
+            <div style="display: flex; width: 100%; justify-content: center; margin: auto">
+                <MudButton OnClick="() => { Agree(); }" Color="Color.Success" Variant="Variant.Outlined">Согласен</MudButton>
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+@code {
+
+    private async Task Agree()
+    {
+        repo.SetLCReaded(AuthProvider.CurrentUser.Id);
+
+        await ShowAlert("Готово", "Теперь можете запускать поиск игры!", 5000, SweetAlertIcon.Success, async () =>
+        {
+            NavigationManager.NavigateTo("/");
+        });
+    }
+    
+    async Task ShowAlert(string caption, string text, int time, SweetAlertIcon icon,  Func<Task> customCallback)
+    {
+        var options = new SweetAlertOptions
+        {
+            TimerProgressBar = true,
+            Timer = time,
+            Title = caption,
+            Text = text,
+            Icon = icon,
+            WillClose = new SweetAlertCallback(async () =>
+            {
+                await customCallback();
+            })
+        };
+
+        await Swal.FireAsync(options);
+    }
+}

@@ -1,0 +1,114 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <base href="/" />
+
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="_content/MudBlazor/MudBlazor.min.css" rel="stylesheet" />
+
+
+    <link rel="stylesheet" href="kTVCSSBlazor.styles.css" />
+    <link rel="icon" type="image/png" href="favicon.ico" />
+    <HeadOutlet @rendermode="@InteractiveServer" />
+
+    <link href="https://fonts.googleapis.com/css2?family=Ubuntu:wght@300;400;500;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css?family=Roboto:300,400,500,700&display=swap" rel="stylesheet" />
+    <link href="~/main.css" rel="stylesheet" />
+    <link href="_content/MudBlazor.ThemeManager/MudBlazorThemeManager.css" rel="stylesheet" />
+
+    <link href="https://stackpath.bootstrapcdn.com/font-awesome/4.7.0/css/font-awesome.min.css" rel="stylesheet" integrity="sha384-wvfXpqpZZVQGK6TAh5PVlGOfQNHSoD2xbE+QkPxCAFlNEevoEH3Sl0sibVcOQVnN" crossorigin="anonymous">
+    <link href="_content/Blazored.Toast/blazored-toast.css" rel="stylesheet" />
+
+    <script>
+        window.downloadFileFromStream = async (fileName, contentStreamReference) => {
+            const arrayBuffer = await contentStreamReference.arrayBuffer();
+            const blob = new Blob([arrayBuffer]);
+            const url = URL.createObjectURL(blob);
+            const anchorElement = document.createElement('a');
+            anchorElement.href = url;
+            anchorElement.download = fileName ?? '';
+            anchorElement.click();
+            anchorElement.remove();
+            URL.revokeObjectURL(url);
+        }
+
+        function closeCurrentTab() {
+            window.open('', '_self', '');
+            window.close();
+        }
+
+        function connectToTeamSpeak(serverAddress, port) {
+            const tsUrl = `ts3server://${serverAddress}?port=${port}&channel=#Матчмейкинг`;
+            window.open(tsUrl, '_self');
+        }
+
+        function connectToServer(serverAddress) {
+            const url = `clientmod://connect/${serverAddress}`;
+            console.log(url);
+            window.open(url, '_self');
+        }
+
+        function playA(t) {
+            var audio = new Audio(t);
+            audio.play();
+        }
+
+        function playAudioInLoop() {
+            let audioUrl = 'kostil.wav';
+            // Создаем новый аудио элемент
+            var audio = new Audio(audioUrl);
+
+            // Устанавливаем обработчик события, который запускается, когда аудио заканчивается
+            audio.addEventListener('ended', function () {
+                // Ставим текущее время в начало и воспроизводим снова
+                this.currentTime = 0;
+                this.play();
+            }, false);
+
+            // Начинаем воспроизведение аудио
+            audio.play();
+        }
+
+        function gameReady() {
+            var ourAudio = document.createElement('audio'); // Create a audio element using the DOM
+            ourAudio.style.display = "none"; // Hide the audio element
+            ourAudio.src = "/audio/gameready.wav"; // Set resource to our URL
+            ourAudio.autoplay = true; // Automatically play sound
+            ourAudio.onended = function () {
+                this.remove(); // Remove when played.
+            };
+            document.body.appendChild(ourAudio);
+        }
+
+        window.notifications = {
+            requestPermission: function () {
+                return Notification.requestPermission();
+            },
+            showNotification: function (title, options) {
+                if (Notification.permission === "granted") {
+                    var notification = new Notification(title, options);
+                } else {
+                    console.error("Уведомления не разрешены пользователем.");
+                }
+            }
+        };
+    </script>
+</head>
+
+<body>
+    <Routes @rendermode="@InteractiveServer" />
+    <script src="HackTimerWorker.min.js"></script>
+    <script src="_framework/blazor.web.js"></script>
+    <script src="/javascript.js"></script>
+    <script src="/howlerAudioPlayers.js"></script>
+    <script src="/Howler/howler.js"></script>
+    <script src="/howlerAudioPlayers.js"></script>
+    <script src="_content/MudBlazor/MudBlazor.min.js"></script>
+    <script src="_content/CurrieTechnologies.Razor.SweetAlert2/sweetAlert2.min.js"></script>
+</body>
+
+</html>

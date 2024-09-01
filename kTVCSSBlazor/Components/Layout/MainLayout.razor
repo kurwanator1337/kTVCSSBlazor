@@ -1,0 +1,1241 @@
+﻿@inherits LayoutComponentBase
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject Context context
+@using Blazored.Toast
+@using Blazored.Toast.Services
+@using CurrieTechnologies.Razor.SweetAlert2
+@using Dapper
+@using Microsoft.AspNetCore.Components.Authorization
+@using System.ComponentModel.DataAnnotations
+@using System.Text.RegularExpressions
+@using System.Security.Claims
+@using kTVCSSBlazor.Components
+@using kTVCSSBlazor.Components.Icons
+@using kTVCSSBlazor.Data
+@using kTVCSSBlazor.Db
+@using kTVCSSBlazor.Db.Models.Players
+@using kTVCSSBlazor.Hubs
+@using kTVCSSBlazor.Hubs.Models
+@using kTVCSSBlazor.Logging
+@using kTVCSSBlazor.Models
+@using Microsoft.AspNetCore.SignalR.Client
+@inject IHttpContextAccessor http
+@inject IJSRuntime JS
+@inject NavigationManager NavigationManager
+@inject Db.Interfaces.IPlayers repo
+@inject IHttpContextAccessor httpContextAccessor
+@inject kTVCSSHub KHub
+@implements IAsyncDisposable
+@inject SweetAlertService Swal
+@inject HubConnection hubConnection
+@inject Db.Interfaces.IAdmins admin
+@inject NotificationService NotificationService
+@inject IToastService toastService
+
+<MyMudThemeProvider />
+<MyMudProviders />
+<MudScrollToTop>
+    <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowCircleUp" />
+</MudScrollToTop>
+@if (isLoaded)
+{
+    <MudLayout>
+        <CascadingAuthenticationState>
+            <AuthorizeView Context="authed">
+                <Authorized>
+                    @if (needPlaySound)
+                    {
+                        <video style="opacity: 1; position: absolute; z-index: 0" autoplay="autoplay">
+                            <source src="/audio/gameready.wav">
+                        </video>
+                    }
+                    @if (readyToPlay) 
+                    {
+                        <video style="opacity: 1; position: absolute; z-index: 0" loop="loop" autoplay="autoplay">
+                            <source src="/silence.wav">
+                        </video>
+                    }
+                    
+                    @try
+                    {
+                        <MudAppBar Dense="false" Elevation="1">
+                            <div id="components-reconnect-modal" class="my-reconnect-modal components-reconnect-hide">
+                                <div class="show">
+                                    <p>
+                                        Соединение с сервером было потеряно. Пытаемся восстановить подключение...
+                                    </p>
+                                </div>
+                                <div class="failed">
+                                    <p>
+                                        Сайт упал или был отключен администратором 😒
+                                    </p>
+                                </div>
+                                <div class="rejected">
+                                    <p>
+                                        Сайт был вновь запущен, пожалуйста, обновите страницу! ☺️
+                                    </p>
+                                </div>
+                            </div>
+                            <MudIconButton Icon="@Icons.Material.Filled.Menu" Color="Color.Inherit" Edge="Edge.Start" OnClick="@((e) => DrawerToggle())" />
+                            <MudIconButton OnClick="BugReport" Icon="@Icons.Material.Filled.BugReport" Color="Color.Inherit" />
+                            @if (hasCam)
+                            {
+                                <MudButton Href="@string.Concat("/camhistory/", user.Id)" StartIcon="@Icons.Material.Filled.Videocam" Color="Color.Error">CAM-статус</MudButton>
+                            }
+                            <MudSpacer />
+                            @if (!isMobile)
+                            {
+                                <MudIconButton OnClick="@(() => { JS.InvokeVoidAsync("connectToTeamSpeak", "ts.ktvcss.ru", 9987); })" Icon="@MyIcons.Teamspeak" Color="Color.Inherit" />
+                                <MudIconButton Href="https://vk.com/kTVCSS" Icon="@MyIcons.VK" Color="Color.Inherit" />
+                                <MudIconButton Href="https://www.youtube.com/kTVCSS" Icon="@Icons.Custom.Brands.YouTube" Color="Color.White" />
+                                <MudIconButton Href="https://discord.gg/VMXP5v3Jwm" Icon="@Icons.Custom.Brands.Discord" Color="Color.White" />
+                                <MudTooltip Text="Telegram бот для оповещения о найденных матчах">
+                                    <MudIconButton Href="https://t.me/ktvcss_matchalerterbot" Icon="@Icons.Custom.Brands.Telegram" Color="Color.White" />
+                                </MudTooltip>
+                            }
+
+                            @if (Alerts.Any())
+                            {
+                                <MudMenu Dense="true" TransformOrigin="Origin.BottomCenter" AnchorOrigin="Origin.BottomCenter" Color="Color.Info" Icon="@Icons.Material.Filled.Notifications" IsOpenChanged="b => { notifyOpen = b; }"  CloseOnItemClick="true">
+                                    <MudList Clickable="true" SelectedValue="Alerts.First()">
+                                        @foreach (var notification in Alerts)
+                                        {
+                                        <MudListItem Class="pa-4">
+                                            <MudText Typo="Typo.body2">@notification.Text</MudText>
+                                        </MudListItem>
+                                        }
+                                    </MudList>
+                                </MudMenu>
+                                }
+                                else
+                                {
+                                <MudMenu Dense="true" TransformOrigin="Origin.BottomCenter" AnchorOrigin="Origin.BottomCenter" Icon="@Icons.Material.Filled.Notifications" IsOpenChanged="b => { notifyOpen = b; }" CloseOnItemClick="true">
+                                    <MudList>
+                                        <MudListItem Class="pa-4">
+                                            <MudText Typo="Typo.body2">Уведомлений пока нет!</MudText>
+                                        </MudListItem>
+                                    </MudList>
+                                </MudMenu>
+                            }
+                            
+                            @* @if (user.Tier == 1)
+                            {
+                                <MudButton OnClick="@(() => { ShowTierMessage(); })" Color="Color.Warning" Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Warning">HIGH</MudButton>
+                            } *@
+                            @if (!isMobile)
+                            {
+                                try
+                                {
+                                    if (kTVCSSHub.Mixes.Where(x => x.MixPlayers.Where(y => y.Id == user.Id).Any()).Any())
+                                    {
+                                        <MudButton OnClick="@(() => { OpenLobby(); })" Color="Color.Error" Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Error">Вы в матче (перейти)</MudButton>
+                                    }
+                                    else
+                                    {
+                                        if (user.SteamId == "STEAM_UNDEFINED")
+                                        {
+                                            <MudButton Color="Color.Error" OnClick=@(() => { NavigationManager.NavigateTo("myprofile", false); }) Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Error">Не привязан стим</MudButton>
+                                        }
+                                        if (!isInSearch)
+                                        {
+                                            if (readyToPlay)
+                                            {
+                                                if (kTVCSSHub.OnlineUsers.FirstOrDefault(x => x.Value.Id == user.Id).Value.InLobbyWithPlayerID == 0)
+                                                {
+                                                    <MudButton Color="Color.Success" OnClick="() => StartSearch()" Disabled=@(connectionStatus != "подключено" ? true : false) Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Podcasts">Играть</MudButton>
+                                                }
+                                                else
+                                                {
+                                                    if (kTVCSSHub.OnlineUsers.FirstOrDefault(x => x.Value.Id == user.Id).Value.InLobbyWithPlayerID == user.Id) // ASD
+                                                    {
+                                                        <MudButton Color="Color.Success" OnClick="() => StartSearch()" Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Podcasts">Играть</MudButton>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudButton Color="Color.Error" Disabled=true Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Podcasts">Вы в лобби</MudButton>
+                                                    }
+                                                }
+                                            }
+                                            else
+                                            {
+                                                <MudButton Disabled Color="Color.Error" Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Podcasts">Играть</MudButton>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            try
+                                            {
+                                                if (kTVCSSHub.SearchUsers.FirstOrDefault(x => x.Value.Id == user.Id).Value.InLobbyWithPlayerID == user.Id)
+                                                {
+                                                    <MudButton Style="@t2ButtonStyle" Disabled=@(searchGameButtonText == "Ожидание" ? true : false) OnClick="StopSearch" Color="Color.Warning" Variant="Variant.Text">
+                                                        @if (isInSearch)
+                                                        {
+                                                            <MudProgressCircular Color="Color.Warning" Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                                            <MudText Class="ms-2" Typo="Typo.button">@searchGameButtonText</MudText>
+                                                        }
+                                                        else
+                                                        {
+                                                            <MudText Class="ms-2" Typo="Typo.button">@searchGameButtonText</MudText>
+                                                        }
+                                                    </MudButton>
+                                                }
+                                                else
+                                                {
+                                                    if (kTVCSSHub.SearchUsers.FirstOrDefault(x => x.Value.Id == user.Id).Value.InLobbyWithPlayerID == 0)
+                                                    {
+                                                        <MudButton Style="@t2ButtonStyle"  Disabled=@(searchGameButtonText == "Ожидание" ? true : false) OnClick="StopSearch" Color="Color.Warning" Variant="Variant.Text">
+                                                            @if (isInSearch)
+                                                            {
+                                                                <MudProgressCircular Color="Color.Warning" Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                                                <MudText Class="ms-2" Typo="Typo.button">@searchGameButtonText</MudText>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudText Class="ms-2" Typo="Typo.button">@searchGameButtonText</MudText>
+                                                            }
+                                                        </MudButton>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudButton Disabled="true" Color="Color.Warning" Variant="Variant.Text">
+                                                            @if (isInSearch)
+                                                            {
+                                                                <MudProgressCircular Color="Color.Inherit" Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                                                <MudText Class="ms-2" Typo="Typo.button">@searchGameButtonText</MudText>
+                                                            }
+                                                            else
+                                                            {
+                                                                <MudText Class="ms-2" Typo="Typo.button">@searchGameButtonText</MudText>
+                                                            }
+                                                        </MudButton>
+                                                    }
+                                                }
+                                            }
+                                            catch (Exception)
+                                            {
+                                                <MudButton Style="@t2ButtonStyle"  Disabled=@(searchGameButtonText == "Ожидание" ? true : false) OnClick="StopSearch" Color="Color.Warning" Variant="Variant.Text">
+                                                    @if (isInSearch)
+                                                    {
+                                                        <MudProgressCircular Color="Color.Inherit" Class="ms-n1" Size="Size.Small" Indeterminate="true" />
+                                                        <MudText Class="ms-2" Typo="Typo.button">@searchGameButtonText</MudText>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudText Class="ms-2" Typo="Typo.button">@searchGameButtonText</MudText>
+                                                    }
+                                                </MudButton>
+                                            }
+                                        }
+                                    }
+                                }
+                                catch (Exception)
+                                {
+                                    <MudButton Color="Color.Error" Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Podcasts">ОБНОВИТЕ СТРАНИЦУ</MudButton>
+                                }
+                                <MudButton Color="Color.Info" Variant="Variant.Text">В поиске: @_currentMixSearchers</MudButton>
+                            }
+                            <div style="writing-mode: vertical-lr;">
+                                <MudTooltip Text=@string.Concat("Статус подключения к сети kTVCSS: ", connectionStatus)>
+                                    <MudAvatar Style="width: 16px;height: 16px;" Color="@connectionColor" Size=Size.Small></MudAvatar>
+                                </MudTooltip>
+                            </div>
+                            
+                            <MudMenu Style="" AnchorOrigin="Origin.BottomCenter" TransformOrigin="Origin.TopCenter" Class="ktv-profile-button" Size="Size.Large" StartIcon="@RankIcon" EndIcon="@Icons.Material.Filled.KeyboardArrowDown" Label="@user.Username" Variant="Variant.Text">
+                                <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Primary" OnTouch=@(() => { NavigationManager.NavigateTo("myprofile", false); }) OnClick=@(() => { NavigationManager.NavigateTo("myprofile", false); })>Мой профиль</MudMenuItem>
+                                @if (!isVip)
+                                {
+                                    <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Primary" OnTouch=@(() => { BuyVIP(); }) OnClick=@(() => { BuyVIP(); })>Купить VIP</MudMenuItem>
+                                }
+                                @if (isAdmin)
+                                {
+                                    <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Primary" OnTouch=@(() => { NavigationManager.NavigateTo("/admin"); }) OnClick=@(() => { NavigationManager.NavigateTo("/admin"); })>Админ-панель</MudMenuItem>
+                                }
+                                @if (!string.IsNullOrEmpty(@user.TeamID))
+                                {
+                                    if (user is not null)
+                                    {
+                                        if (user.SteamId != "STEAM_UNDEFINED")
+                                        {
+                                            <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Primary" OnTouch=@(() => { NavigationManager.NavigateTo("team/" + user.TeamID, false); }) OnClick=@(() => { NavigationManager.NavigateTo("team/" + user.TeamID, false); })>Моя команда</MudMenuItem>
+                                        }
+                                    }
+                                }
+                                else
+                                {
+                                    <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Primary" OnTouch=@(() => { NavigationManager.NavigateTo("/createteam", false); }) OnClick=@(() => { NavigationManager.NavigateTo("/createteam", false); })>Создать команду</MudMenuItem>
+                                }
+                                <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Primary" OnTouch=@(async () => { await hubConnection.InvokeAsync("DisconnectMe", user); NavigationManager.NavigateTo("/", true); }) OnClick=@(async () => { await hubConnection.InvokeAsync("DisconnectMe", user); NavigationManager.NavigateTo("/", true); })>Отключиться от хаба</MudMenuItem>
+                                <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Primary" OnTouch=@(() => { AuthProvider.LogoutAsync(); NavigationManager.NavigateTo("/", true); }) OnClick=@(() => { AuthProvider.LogoutAsync(); NavigationManager.NavigateTo("/", true); })>Выйти</MudMenuItem>
+                            </MudMenu>
+                        </MudAppBar>
+                    }
+                    catch (Exception)
+                    {
+
+                    }
+                    <MudDrawer @bind-Open="_drawerOpen" Elevation="1">
+                        <MudDrawerHeader>
+                            <img style="width: 33px; height: 33px; margin-right: 2%;" src="/images/logo_ktv.png" />
+                            <MudText Typo="Typo.h6">kTVCSS</MudText>
+                        </MudDrawerHeader>
+                        <NavMenu />
+                        <MudSpacer />
+                        @* <MudText Align="Align.Center" Typo="Typo.overline">kTVCSS © 2013-2024</MudText> *@
+                        <MudText Color="Color.Success" Align="Align.Center" Typo="Typo.caption">kTVCSS v3.5.2.1 [STABLE]</MudText>
+                    </MudDrawer>
+                    <MudMainContent>
+                        <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4 pt-4">
+                            @Body
+                        </MudContainer>
+                    </MudMainContent>
+                </Authorized>
+                <NotAuthorized Context="notauth">
+                    @if (!NavigationManager.Uri.Contains("/signup"))
+                    {
+                        <MudMainContent Style="background-attachment: fixed;height: 100svh;background-repeat: no-repeat;background-size: cover;background-image: url('/images/inzame/totalplayers.jpg')">
+                            <MudContainer MaxWidth="MaxWidth.Small" Class="my-16">
+                                <div style="display: @authBlockStyle">
+                                    <EditForm Model="@model" OnValidSubmit="OnValidSubmit">
+                                        <DataAnnotationsValidator />
+                                        <MudGrid>
+                                            <MudItem Style="border-radius: 10px;background-color: rgb(6 6 6);opacity: 0.9;" xs="12" md="16">
+                                                <MudCard Style="border-radius: 10px;background-color: rgb(6 6 6);">
+                                                    <MudCardMedia Style="background-size: contain;" Image="/images/logo_ktv.png" Height="300" />
+                                                    <MudCardContent>
+                                                        <MudTextField Label="Логин"
+                                                                      @bind-Value="model.Login" For="@(() => model.Login)" />
+                                                        <MudTextField Label="Пароль" Class="mt-3"
+                                                                      @bind-Value="model.Password" For="@(() => model.Password)" InputType="InputType.Password" />
+                                                    </MudCardContent>
+                                                    <MudCardActions>
+                                                        <MudStack Row="false" Justify="Justify.Center">
+                                                            <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Авторизация</MudButton>
+                                                            <MudText Style="color: white;-webkit-text-stroke: 0.2px #000;text-shadow: 3px 2px 4px #000000;font-weight: bold;" Typo="Typo.body1" Align="Align.Center">
+                                                                Чтобы начать играть или пользоваться сайтом необходимо быть зарегистрированным в системе kTVCSS.
+                                                            </MudText>
+                                                            <MudText Typo="Typo.h5" Align="Align.Center">
+                                                                <MudLink Color="Color.Error" Typo="Typo.h5" Href="/signup">Нет учетной записи? Нажмите здесь, чтобы создать новую!</MudLink>
+                                                            </MudText>
+                                                            <MudText Color="Color.Warning" Typo="Typo.h6" Align="Align.Center">
+                                                                <MudLink Color="Color.Warning" Typo="Typo.h6" OnClick="GetRecoveryMessage">Восстановление учетной записи</MudLink>
+                                                            </MudText>
+
+
+                                                            <MudItem xs="12" md="16">
+                                                                @if (!string.IsNullOrEmpty(successSignup))
+                                                                {
+                                                                    <MudAlert Severity="Severity.Success" CloseIconClicked="() => { successSignup = null; }" ShowCloseIcon="true" ContentAlignment="HorizontalAlignment.Center">@successSignup</MudAlert>
+                                                                }
+                                                            </MudItem>
+
+                                                            @if (!string.IsNullOrEmpty(error))
+                                                            {
+                                                                <MudAlert Severity="Severity.Error" CloseIconClicked="() => { error = null; }" ShowCloseIcon="true" ContentAlignment="HorizontalAlignment.Center">@error</MudAlert>
+                                                            }
+                                                        </MudStack>
+                                                    </MudCardActions>
+                                                </MudCard>
+                                            </MudItem>
+                                        </MudGrid>
+                                    </EditForm>
+                                </div>
+                            </MudContainer>
+                        </MudMainContent>
+                    }
+                    else
+                    {
+                        <MudContainer MaxWidth="MaxWidth.Small" Class="my-16 pt-16">
+                            <div>
+                                <EditForm Model="@model" OnValidSubmit="OnRegSubmit">
+                                    <DataAnnotationsValidator />
+                                    <MudGrid>
+                                        <MudItem xs="12" md="16">
+                                            <MudCard>
+                                                <MudCardMedia Style="background-size: contain;" Image="/images/logo_ktv.png" Height="300" />
+                                                <MudCardContent>
+                                                    <MudTextField Label="Логин"
+                                                                  @bind-Value="model.Login" For="@(() => model.Login)" />
+                                                    <MudTextField Label="Пароль" Class="mt-3"
+                                                                  @bind-Value="model.Password" For="@(() => model.Password)" InputType="InputType.Password" />
+                                                </MudCardContent>
+                                                <MudCardActions>
+                                                    <MudButton ButtonType="ButtonType.Submit" Variant="Variant.Filled" Color="Color.Primary" Class="ml-auto">Регистрация</MudButton>
+                                                </MudCardActions>
+                                            </MudCard>
+                                        </MudItem>
+                                        <MudItem xs="12" md="16">
+                                            @if (!string.IsNullOrEmpty(error))
+                                            {
+                                                <MudAlert Severity="Severity.Error" CloseIconClicked="() => { error = null; }" ShowCloseIcon="true" ContentAlignment="HorizontalAlignment.Center">@error</MudAlert>
+                                            }
+                                        </MudItem>
+                                    </MudGrid>
+                                </EditForm>
+                            </div>
+                        </MudContainer>
+                    }
+                </NotAuthorized>
+            </AuthorizeView>
+        </CascadingAuthenticationState>
+        <BlazoredToasts Position="Blazored.Toast.Configuration.ToastPosition.BottomRight" MaxToastCount="5" />
+    </MudLayout>
+}
+else
+{
+    <div class="top">
+        <div style="justify-content: center;display: flex;">
+            <img style="height: 65%;width:65%" src="/images/ktvcss.webp" />
+        </div>
+    </div>
+}
+
+<div id="blazor-error-ui">
+    Возникла ошибка, пожалуйста, сообщите о том, что Вы пытались сделать разработчикам.
+    <a href="" class="reload">Перезагрузить страницу</a>
+    <a class="dismiss">🗙</a>
+</div>
+
+
+<style>
+    .my-reconnect-modal > div {
+        position: absolute;
+        width: 100svw;
+        height: 100svh;
+        top: 0;
+        right: 0;
+        bottom: 0;
+        left: 0;
+        z-index: 1000;
+        overflow: hidden;
+        background-color: #080808;
+        opacity: 0.8;
+        text-align: center;
+        font-weight: bold;
+    }
+
+    .components-reconnect-hide > div {
+        display: none;
+    }
+
+    .components-reconnect-show > div {
+        display: none;
+    }
+
+    .components-reconnect-show > .show {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100%;
+        font-size: x-large;
+    }
+
+    .components-reconnect-failed > div {
+        display: none;
+    }
+
+    .components-reconnect-failed > .failed {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100%;
+        font-size: x-large;
+    }
+
+    .components-reconnect-rejected > div {
+        display: none;
+    }
+
+    .components-reconnect-rejected > .rejected {
+        display: flex;
+        justify-content: center;
+        align-items: center;
+        height: 100vh;
+        width: 100%;
+        font-size: x-large;
+    }
+
+    .ktv-profile-button {
+        font-size: 24px;
+    }
+
+    .top {
+        overflow: hidden;
+        background-color: #1e1f25;
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        margin: auto;
+        justify-content: center;
+        align-content: center;
+        align-items: center;
+    }
+
+    .mud-card-actions {
+        display: flex;
+        padding: 8px;
+        align-items: center;
+        flex-direction: @mudcardoptionsStyle;
+    }
+</style>
+
+<script>
+    window.setDotNetInterval = function (dotNetObject, methodName, interval) {
+        setInterval(function () {
+            console.log("~~~~~keep alive~~~~~");
+            dotNetObject.invokeMethodAsync(methodName);
+        }, interval);
+    };    
+</script>
+
+@code {
+    private string mudcardoptionsStyle = "row";
+
+    private bool _notifyOpen = false;
+
+    private bool notifyOpen
+    {
+        get
+        {
+            return _notifyOpen;
+        }
+        set
+        {
+            if (value)
+            {
+                if (Alerts.Any())
+                {
+                    repo.SupressAlerts(user.Id);
+                }
+            }
+
+            _notifyOpen = true;
+        }
+    }
+
+    private bool isLoaded;
+    private bool _drawerOpen = true;
+    private Color connectionColor = Color.Warning;
+    private string connectionStatus = "идет подключение";
+    private string searchGameButtonText  = "Поиск игры";
+    private bool needPlaySound = false;
+
+    private bool isInSearch = false;
+
+    private string profilePictureClass = "<img src='/images/logo_ktv.png' style='width: 20px;'>";
+    private string authBlockStyle = "none";
+    private string error = string.Empty;
+    private string successSignup = string.Empty;
+    private string profileName = "Профиль";
+    private bool isMobile = false;
+    private bool readyToPlay = false;
+    private User user;
+    private MudMenu profileMenu;
+    private RegisterAccountForm model = new RegisterAccountForm();
+    private string RankIcon = Icons.Material.Filled.AccountCircle;
+    private bool isVip = false;
+    private bool isAdmin = false;
+
+    private bool hasCam = false;
+
+    private int _currentMixSearchers = 0;
+
+    private List<Alert> Alerts = new List<Alert>();
+
+    private string t1ButtonStyle = "display: flex";
+    private string t2ButtonStyle = "display: flex";
+
+    private string Message = string.Empty;
+
+    private async Task BugReport()
+    {
+        var options = new SweetAlertOptions
+            {
+                Title = "Сообщить о баге/ошибке",
+                Input = SweetAlertInputType.Text,
+                InputValue = $""
+            };
+
+        var result = await Swal.FireAsync(options);
+
+        if (result.Value is not null)
+        {
+            if (result.Value == "")
+            {
+                return;
+            }
+            admin.BugReport(user.Id, result.Value);
+
+            toastService.ShowWarning($"Сообщение было отправлено администрации!");
+        }
+    }
+
+    private async Task OpenLobby()
+    {
+        if (kTVCSSHub.Mixes.Where(x => x.MixPlayers.Where(y => y.Id == user.Id).Any()).Any())
+        {
+            var guid = kTVCSSHub.Mixes.Where(x => x.MixPlayers.Where(y => y.Id == user.Id).Any()).First().Guid.ToString();
+            NavigationManager.NavigateTo($"/mix/{guid}");
+        }
+    }
+
+    void DrawerToggle()
+    {
+        _drawerOpen = !_drawerOpen;
+    }
+
+    public void HandleClick(MouseEventArgs e)
+    {
+        profileMenu.CloseMenu();
+    }
+
+    private string GetProfileUrl()
+    {
+        int id = user.Id;
+        return $"/player/{user.Id}";
+    }
+
+    private async Task StartSearch()
+    {
+        await JS.InvokeVoidAsyncIgnoreErrors("playAudioInLoop");
+
+        isInSearch = true;
+
+        var id = repo.GetTelegramID(user.Id);
+
+        if (string.IsNullOrEmpty(id))
+        {
+            toastService.ShowWarning($"Привяжите телеграм к проекту и подключите бота, чтобы получать уведомления о найденном матче! Привязка телеграмма находится в редактировании профиля! Подключить бота можно в верхнем меню сайта, нажав на кнопку телеграмма.", x => { x.Timeout = 10; });
+        }
+
+        hubConnection.SendAsync("StartSearch", user);
+    }
+
+    private async Task StopSearch()
+    {
+        isInSearch = false;
+        hubConnection.SendAsync("StopSearch", user);
+    }
+
+    private void GetRecoveryMessage()
+    {
+        SweetAlertOptions options = new();
+        options.TimerProgressBar = true;
+        options.Timer = 20000;
+        options.Title = "Восстановление";
+        options.Text = "Для восстановления доступа к аккаунту Вам необходимо связаться с администрацией и назвать код, который Вы вводили при регистрации. Такие сложности сделаны в рамках безопасности. Если Вы код не помните, то мы ничем Вам помочь не сможем. 🥲";
+        options.Icon = SweetAlertIcon.Warning;
+        Swal.FireAsync(options);
+    }
+
+    private async Task ConnectedWithHub()
+    {
+        try
+        {
+            user = await AuthProvider.GetUserFromDataBase();
+        }
+        catch (Exception)
+        {
+        //
+        }
+
+        StateHasChanged();
+
+        if (user is not null)
+        {
+            locationChangingSubscription = NavigationManager.RegisterLocationChangingHandler(async cxt =>
+            {
+                Alerts = await repo.GetAlerts(user.Id);
+
+                if (hubConnection.State == HubConnectionState.Connecting)
+                {
+                    cxt.PreventNavigation();
+                    SweetAlertOptions options = new();
+                    options.TimerProgressBar = true;
+                    options.Timer = 6000;
+                    options.Title = "Идет подключение к сети kTVCSS";
+                    options.Text = "Подождите, Вы еще не подключены к сети проекта! Когда справа сверху индикатор загорится зеленым, тогда можно будет переключаться между страницами!";
+                    options.Icon = SweetAlertIcon.Warning;
+                    Swal.FireAsync(options);
+                    return;
+                }
+
+                if (hubConnection.State != HubConnectionState.Connected)
+                {
+                    if (user is not null)
+                    {
+                        cxt.PreventNavigation();
+                        SweetAlertOptions options = new();
+                        options.TimerProgressBar = true;
+                        options.Timer = 5000;
+                        options.Title = "Подключение к сети kTVCSS";
+                        options.Text = "Отсутствует подключение к сети проекта, обновите страницу!";
+                        options.Icon = SweetAlertIcon.Error;
+                        Swal.FireAsync(options);
+                    }
+                }
+            });
+
+            isVip = await repo.IsVip(user.SteamId);
+            isAdmin = await admin.IsAdmin(user.SteamId);
+
+            Alerts = await repo.GetAlerts(user.Id);
+
+            try
+            {
+                await hubConnection.StartAsync();
+
+                await hubConnection.SendAsync("UserConnected", user);
+            }
+            catch (Exception ex)
+            {
+                try
+                {
+                    connectionColor = Color.Error;
+                    connectionStatus = "отключено";
+                    isInSearch = false;
+                    readyToPlay = false;
+                    InvokeAsync(StateHasChanged);
+                    SweetAlertOptions options = new();
+                    options.TimerProgressBar = true;
+                    options.Timer = 10000;
+                    options.Title = "Не удалось подключиться к сайту";
+                    options.Text = ex.Message;
+                    options.Icon = SweetAlertIcon.Error;
+                    SweetAlertResult result = await Swal.FireAsync(options);
+                }
+                catch (Exception)
+                {
+                    // destroyed
+                }
+                return;
+            }
+
+            hubConnection.On("MixesSearchCurrentCount", async (int count) =>
+            {
+                _currentMixSearchers = count;
+                InvokeAsync(StateHasChanged);
+                //await JS.InvokeVoidAsyncIgnoreErrors("playA", "/audio/mpc.wav");
+                //toastService.ShowInfo($"Игроков в поиске: {count}");
+            });
+
+            hubConnection.On("SendLostsAlert", async () =>
+            {
+                SweetAlertOptions options = new();
+                options.TimerProgressBar = true;
+                options.Timer = 8000;
+                options.Title = "Предупреждение от проекта";
+                options.Text = "У Вас было 3 поражения подряд. Пока еще не поздно, подумайте, может лучше взять перерыв и потом запустить поиск с новыми силами?";
+                options.Icon = SweetAlertIcon.Warning;
+                options.WillClose = new SweetAlertCallback(async () =>
+                {
+
+                });
+
+                Swal.FireAsync(options);
+            });
+
+            hubConnection.On("AlreadyConnected", async () =>
+                {
+                    connectionColor = Color.Error;
+                    connectionStatus = "отключено";
+                    isInSearch = false;
+                    readyToPlay = false;
+                    InvokeAsync(StateHasChanged);
+                    toastService.ShowWarning($"Вы уже подключены к сайту!", x => { x.Timeout = 5; });
+                });
+
+            hubConnection.On("MixesDisabled", async () =>
+                {
+                    isInSearch = false;
+                    readyToPlay = true;
+                    InvokeAsync(StateHasChanged);
+                });
+
+            hubConnection.On("SendLC", async () =>
+            {
+                isInSearch = false;
+                readyToPlay = true;
+                InvokeAsync(StateHasChanged);
+                NavigationManager.NavigateTo("/agreement");
+            });
+
+            hubConnection.Closed += async (Exception ex) =>
+            {
+                OnLostConnection();
+            };
+
+            if (user.Id == 0)
+            {
+                OnLostConnection();
+
+                SweetAlertOptions options = new();
+                options.TimerProgressBar = true;
+                options.Timer = 5000;
+                options.Title = "Ошибка подключения к сети kTVCSS";
+                options.Text = "Нам не удалось получить информацию о Вас или возникла ошибка при подключении к проекту! Если ошибка повторяется, сообщите администрации!";
+                options.Icon = SweetAlertIcon.Error;
+                options.WillClose = new SweetAlertCallback(async () =>
+                    {
+                        NavigationManager.Refresh(true);
+                    });
+
+                await Swal.FireAsync(options);
+            }
+            else
+            {
+                connectionColor = Color.Success;
+                connectionStatus = "подключено";
+
+                switch (user.RankPicture)
+                {
+                    case "/images/ranks/UNRANKED.png":
+                        {
+                            RankIcon = Faceit.UNRANKED;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-I.png":
+                        {
+                            RankIcon = Faceit.LEVELI;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-II.png":
+                        {
+                            RankIcon = Faceit.LEVELII;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-III.png":
+                        {
+                            RankIcon = Faceit.LEVELIII;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-IV.png":
+                        {
+                            RankIcon = Faceit.LEVELIV;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-V.png":
+                        {
+                            RankIcon = Faceit.LEVELV;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-VI.png":
+                        {
+                            RankIcon = Faceit.LEVELVI;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-VII.png":
+                        {
+                            RankIcon = Faceit.LEVELVII;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-VIII.png":
+                        {
+                            RankIcon = Faceit.LEVELVIII;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-IX.png":
+                        {
+                            RankIcon = Faceit.LEVELIX;
+                            break;
+                        }
+                    case "/images/ranks/LEVEL-X.png":
+                        {
+                            RankIcon = Faceit.LEVELX;
+                            break;
+                        }
+                }
+
+                if (user.SteamId == "STEAM_UNDEFINED")
+                {
+                    SweetAlertOptions options = new();
+                    options.TimerProgressBar = true;
+                    options.Timer = 6000;
+                    options.Title = "Завершение регистрации";
+                    options.Text = $"Благодарим за регистрацию! Теперь Вам нужно привязать STEAM ID к проекту. Сейчас Вы будете перенаправлены для получения инструкции!";
+                    options.Icon = SweetAlertIcon.Info;
+                    var result = await Swal.FireAsync(options);
+                    NavigationManager.NavigateTo("myprofile", false);
+                }
+
+                hubConnection.On("GetRequestToJoinLobby", async (User from) =>
+                {
+                    SweetAlertResult result = await Swal.FireAsync(new SweetAlertOptions
+                        {
+                            Title = "Приглашение в лобби",
+                            Text = $"Вас приглашает в лобби {from.Username}! Принять приглашение?",
+                            Icon = SweetAlertIcon.Question,
+                            ShowCancelButton = true,
+                            ConfirmButtonText = "Принять",
+                            CancelButtonText = "Отклонить"
+                        });
+
+                    if (!string.IsNullOrEmpty(result.Value))
+                    {
+                        hubConnection.InvokeAsync("AcceptRequestToJoinLobby", user, from);
+
+                        InvokeAsync(StateHasChanged);
+                    }
+                });
+
+                hubConnection.On("PlayerJoinedToLobby", async (User from) =>
+                {
+                    toastService.ShowSuccess($"{from.Username} вступил к Вам в лобби!");
+
+                    InvokeAsync(StateHasChanged);
+                });
+
+                hubConnection.On("LobbyPlayerDisconnected", async () =>
+                {
+                    InvokeAsync(StateHasChanged);
+                });
+
+                hubConnection.On("OnConnectedToCoordinator", async () =>
+                {
+                    isInSearch = true;
+                    InvokeAsync(StateHasChanged);
+                });
+
+                hubConnection.On("OnDisconnectedFromCoordinator", async () =>
+                {
+                    isInSearch = false;
+                    InvokeAsync(StateHasChanged);
+                });
+
+                hubConnection.On("FullLobby", async () =>
+                {
+                    toastService.ShowError($"Лобби достигло максимального количества игроков!");
+                });
+
+                hubConnection.On("KickedFromLobby", async () =>
+                {
+                    isInSearch = false;
+                    SweetAlertOptions options = new();
+                    options.TimerProgressBar = true;
+                    options.Timer = 5000;
+                    options.Title = "Исключение";
+                    options.Text = $"Вы были исключены из лобби!";
+                    options.Icon = SweetAlertIcon.Warning;
+                    var result = await Swal.FireAsync(options);
+                    if (!string.IsNullOrEmpty(result.Value))
+                    {
+                        await hubConnection.InvokeAsync("DisconnectMe", user);
+                        NavigationManager.Refresh(true);
+                    }
+                });
+
+                hubConnection.On("MixEnded", async () =>
+                {
+                    SweetAlertOptions options = new();
+                    options.TimerProgressBar = true;
+                    options.Timer = 5000;
+                    options.Title = "Микс завершился";
+                    options.Text = "Микс закончился! Благодарим за игру!";
+                    options.Icon = SweetAlertIcon.Success;
+                    var result = await Swal.FireAsync(options);
+                    NavigationManager.NavigateTo("/", false);
+                    readyToPlay = true;
+                    isInSearch = false;
+                    InvokeAsync(StateHasChanged);
+                });
+
+                hubConnection.On("GetActionError", async (string message) =>
+                {
+                    if (message == "Нельзя начать поиск, т.к. Вы в бане!")
+                    {
+                        readyToPlay = true;
+                        isInSearch = false;
+                    }
+                    SweetAlertOptions options = new();
+                    options.TimerProgressBar = true;
+                    options.Timer = 5000;
+                    options.Title = "Ошибка";
+                    options.Text = message;
+                    options.Icon = SweetAlertIcon.Error;
+                    await Swal.FireAsync(options);
+                    InvokeAsync(StateHasChanged);
+                });
+
+                hubConnection.On("GFFailedSMBNotAcc", async (List<AwaitingPlayer> unready) =>
+                {
+                    var unreadyString = string.Empty;
+
+                    foreach (var player in unready)
+                    {
+                        unreadyString += player.Username + ", ";
+                    }
+
+                    readyToPlay = true;
+                    isInSearch = false;
+                    searchGameButtonText = "Поиск игры";
+                    SweetAlertOptions options = new();
+                    options.TimerProgressBar = true;
+                    options.Timer = 8000;
+                    options.Title = "Матч провалился";
+                    options.Text = $"Кто-то не принял или отклонил игру, Вы можете начать поиск заново! Игру не приняли: {unreadyString}";
+                    options.Icon = SweetAlertIcon.Error;
+                    await Swal.FireAsync(options);
+                    InvokeAsync(StateHasChanged);
+                });
+
+                hubConnection.On("GFBlock", async () =>
+                {
+                    readyToPlay = true;
+                    isInSearch = false;
+                    SweetAlertOptions options = new();
+                    options.Title = "Бан";
+                    options.Text = "Вы получаете блокировку, т.к. Вы не приняли матч!";
+                    options.Icon = SweetAlertIcon.Error;
+                    await Swal.FireAsync(options);
+                    InvokeAsync(StateHasChanged);
+                });
+
+                hubConnection.On("GetPrivateMessage", async (string text, int id) =>
+                {
+                    await JS.InvokeVoidAsyncIgnoreErrors("playA", "/icq.wav");
+                    toastService.ShowInfo(text, x => { x.Timeout = 5; x.OnClick = () => { NavigationManager.NavigateTo($"/chat?selected={id}"); }; });
+                });
+
+                hubConnection.On("DisconnectRequested", async () =>
+                {
+                    NavigationManager.NavigateTo("/", true);
+                });
+
+                hubConnection.On("JoinMixRoom", async (string guid) =>
+                {
+                    needPlaySound = true;
+                    try
+                    {
+                        await JS.InvokeVoidAsyncIgnoreErrors("playA", "/audio/gameready.wav");
+                    }
+                    catch (Exception)
+                    {
+
+                    }
+                    try
+                    {
+                        JS.InvokeVoidAsync("gameReady");
+                    }
+                    catch (Exception)
+                    {
+
+                    }
+                    readyToPlay = true;
+                    isInSearch = true;
+                    InvokeAsync(StateHasChanged);
+                    SweetAlertOptions options = new();
+                    options.TimerProgressBar = true;
+                    options.Timer = 3000;
+                    options.Title = "Матч создан";
+                    options.Text = "Матч был успешно создан, сейчас вы будете перенаправлены в комнату!";
+                    options.Icon = SweetAlertIcon.Success;
+                    var result = await Swal.FireAsync(options);
+                    NavigationManager.NavigateTo($"/mix/{guid}");
+                    needPlaySound = false;
+                });
+
+                hubConnection.On("NewFriendRequest", async (User newFriend, int me) =>
+                {
+                    SweetAlertOptions options = new();
+                    options.Title = "Новая заявка в друзья";
+                    options.Text = $"{newFriend.Username} хочет добавить Вас в друзья. Добавить?";
+                    options.Icon = SweetAlertIcon.Question;
+                    options.ConfirmButtonText = "Да";
+                    options.CancelButtonText = "Нет";
+                    options.ShowCancelButton = true;
+                    var result = await Swal.FireAsync(options);
+                    if (!string.IsNullOrEmpty(result.Value))
+                    {
+                        repo.AcceptFriendRequest(me, newFriend.Id);
+                        InvokeAsync(StateHasChanged);
+                    }
+                    else
+                    {
+                        repo.RemoveFriendRequest(me, newFriend.Id);
+                        InvokeAsync(StateHasChanged);
+                    }
+                });
+
+                while (!kTVCSSHub.OnlineUsers.Where(x => x.Value.Id == user.Id).Any())
+                {
+                    await Task.Delay(500);
+                }
+
+                hasCam = repo.HasCam(user.Id);
+
+                readyToPlay = true;
+
+                //SendKeepAlive(user);
+
+                StateHasChanged();
+            }
+        }
+    }
+
+    private async Task ShowTierMessage()
+    {
+        SweetAlertOptions options = new();
+        options.Title = "kTVCSS";
+        options.Text = $"Вы являетесь TIER-1 игроком. В случае, если в поиске будут 10 человек Вашего уровня игры, для вас будет создан матч с приоритетом. Для большего взаимодействия вступите в беседу: https://vk.me/join/08WQIzn_Y2_5Om7zneSLiWdja9mWRfIEaVU=";
+        options.Icon = SweetAlertIcon.Warning;
+        options.ConfirmButtonText = "Ок";
+        options.ShowCancelButton = false;
+        var result = await Swal.FireAsync(options);
+    }
+
+    private void OnLostConnection()
+    {
+        connectionColor = Color.Error;
+        connectionStatus = "отключено";
+
+        StateHasChanged();
+    }
+
+    private IDisposable locationChangingSubscription;
+
+    protected override async Task OnInitializedAsync()
+    {
+        if (NavigationManager.Uri.Contains("/onlineplayers") || NavigationManager.Uri.Contains("/friends"))
+        {
+            NavigationManager.NavigateTo("/");
+        }
+
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            mudcardoptionsStyle = "column";
+            isMobile = true;
+        }
+    }
+
+    public void Dispose()
+    {
+        locationChangingSubscription?.Dispose();
+        dotNetRef.Dispose();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            try
+            {
+                var isAuthorized = http.HttpContext.User.Identity.IsAuthenticated;
+
+                if (!isAuthorized)
+                {
+                    authBlockStyle = "block";
+                    StateHasChanged();
+                }
+            }
+            catch (Exception)
+            {
+                // ???
+            }
+
+            if (!isLoaded)
+            {
+                isLoaded = true;
+
+                await ConnectedWithHub();
+
+                StateHasChanged();
+            }
+        }
+    }
+
+    private DotNetObjectReference<MainLayout> dotNetRef;
+
+    [JSInvokable]
+    public void UpdateKeepAlive()
+    {
+        StateHasChanged();
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        try
+        {
+            if (hubConnection is not null)
+            {
+                await hubConnection.DisposeAsync();
+            }
+        }
+        catch (Exception) {
+            // null
+        }
+    }
+
+    private async Task OnValidSubmit(EditContext ctx)
+    {
+        var model = ctx.Model as RegisterAccountForm;
+
+        user = new User()
+            {
+                SteamId = "STEAM_UNDEFINIED",
+                Id = 10000000,
+                Username = "auth",
+                Name = "auth"
+            };
+
+        error = await AuthProvider.LoginAsync(model.Login, model.Password);
+
+        if (string.IsNullOrEmpty(error))
+        {
+            NavigationManager.NavigateTo("/", true);
+        }
+    }
+
+    private async Task OnRegSubmit(EditContext ctx)
+    {
+        var model = ctx.Model as RegisterAccountForm;
+
+        error = await AuthProvider.SignupAsync(model.Login, model.Password);
+
+        if (error == "0")
+        {
+            error = "Пароль слишком короткий!";
+        }
+
+        if (error == "1")
+        {
+            error = "Учетная запись уже существует!";
+        }
+
+        if (error == "2")
+        {
+            error = "Слишком длинный логин!";
+        }
+
+        if (error == "3")
+        {
+            successSignup = $"Благодарим за регистрацию, {model.Login}! Теперь Вам необходимо авторизоваться!";
+            error = string.Empty;
+            NavigationManager.NavigateTo("/");
+        }
+
+        StateHasChanged();
+    }
+
+    private void BuyVIP()
+    {
+        var id = repo.GetTelegramID(user.Id);
+
+        if (string.IsNullOrEmpty(id))
+        {
+            SweetAlertOptions options = new();
+            options.TimerProgressBar = true;
+            options.Timer = 10000;
+            options.Title = "Не привязан телеграм";
+            options.Text = "Для покупки VIP необходимо привязать телеграм к проекту! Это можно сделать в редактировании профиля, сейчас мы Вас туда направим! P.S. После покупки VIP в Boosty, нужно будет вступить в телеграм канал!!!";
+            options.Icon = SweetAlertIcon.Error;
+            var res = Swal.FireAsync(options);
+            NavigationManager.NavigateTo("/editprofile");
+        }
+        else
+        {
+            NavigationManager.NavigateTo("https://boosty.to/ktvcss_vip");
+        }
+    }
+}

@@ -1,0 +1,138 @@
+﻿@page "/player/highlights/{PlayerID}"
+@using System.IO.Compression
+@using CurrieTechnologies.Razor.SweetAlert2
+@using Microsoft.AspNetCore.SignalR.Client
+@using kTVCSSBlazor.Db.Models.Highlights
+@using kTVCSSBlazor.Db.Models.Players
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@inject Db.Interfaces.IHighlights repo
+@inject Db.Interfaces.IPlayers vips
+@inject ISnackbar snackbar
+@inject IDialogService DialogService
+@using kTVCSSBlazor.Components.Pages.Players.ProfileItems
+@inject SweetAlertService Swal
+
+<PageTitle>kTVCSS @@ Хайлайты</PageTitle>
+
+<kTVCSSBlazor.Components.Layout.Bar display="@displayBar" />
+
+<MudScrollToTop>
+    <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowCircleUp" />
+</MudScrollToTop>
+
+<MudSimpleTable Style="overflow-x: auto;">
+    <thead>
+        <tr>
+            <th>Ник на демке</th>
+            <th>Тип</th>
+            <th>Тики</th>
+            <th>Длительность момента</th>
+            <th></th>
+        </tr>
+    </thead>
+    <tbody>
+        @foreach (var row in results)
+        {
+            <tr>
+                <td>@row.Name</td>
+                <td>@row.Type</td>
+                <td>@row.Ticks</td>
+                <td>@row.Length сек</td>
+                <td><MudFab Size="Size.Small" OnClick="@(() => { DemoDownload(row); })" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" /></td>
+            </tr>
+        }
+    </tbody>
+</MudSimpleTable>
+
+@code {
+    [Parameter]
+    public string PlayerID { get; set; }
+
+    private string display = "none";
+    private string displayBar = "block";
+    List<Result> results = new List<Result>();
+
+    async Task ShowAlert(string caption, string text, int time, SweetAlertIcon icon, Func<Task> customCallback)
+    {
+        var options = new SweetAlertOptions
+            {
+                TimerProgressBar = true,
+                Timer = time,
+                Title = caption,
+                Text = text,
+                Icon = icon,
+                WillClose = new SweetAlertCallback(async () =>
+                {
+                    await customCallback();
+                })
+            };
+
+        await Swal.FireAsync(options);
+    }
+
+    private async Task DemoDownload(Result demo)
+    {
+        string baseDemoName = $"{demo.Name}_{demo.Type}_{demo.Ticks}";
+        
+        var filePath = Path.Combine("wwwroot", "demos", demo.DemoName + ".dem.zip");
+
+        if (File.Exists(filePath))
+        {
+            using (ZipArchive zipArchive = new ZipArchive(new FileStream(Path.Combine(filePath), FileMode.Open), ZipArchiveMode.Read))
+            {
+                zipArchive.ExtractToDirectory(Path.Combine("wwwroot", "demos", "requests"));
+            }
+
+            File.Move(Path.Combine("wwwroot", "demos", "requests", $"{demo.DemoName}.dem"), 
+                Path.Combine("wwwroot", "demos", "requests", $"{baseDemoName}.dem"));
+            
+            byte[] fileBytes = File.ReadAllBytes(Path.Combine("wwwroot", "demos", "requests", $"{baseDemoName}.dem"));
+
+            using (var outputStream = new MemoryStream(fileBytes))
+            {
+                using var streamRef = new DotNetStreamReference(stream: outputStream);
+
+                await JS.InvokeVoidAsync("downloadFileFromStream", baseDemoName + ".dem", streamRef);
+            }
+        }
+        else
+        {
+            await ShowAlert("Ошибка", "Извините, мы не смогли найти демо-запись этого матча 😭", 3000, SweetAlertIcon.Error, null);
+        }
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        JS.InvokeVoidAsync("showLoadBar");
+
+        return base.OnInitializedAsync();
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var user = await AuthProvider.GetUserFromDataBase();
+
+            if (!await vips.IsVip(user.SteamId))
+            {
+                ShowAlert("Хорошая попытка, но нет", "Вы не являетесь VIP пользователем!", 3000, SweetAlertIcon.Error, null);
+                JS.InvokeVoidAsync("hideLoadBar");
+                StateHasChanged();
+                return;
+            }
+
+            results = await repo.GetByPlayer(Convert.ToInt32(PlayerID), user.SteamId);
+
+            JS.InvokeVoidAsync("hideLoadBar");
+
+            if (results.Count == 0)
+            {
+                ShowAlert("Хайлайт-центр", "Извините, у Вас пока не было хайлайтов 😭", 3000, SweetAlertIcon.Error, null);
+            }
+
+            StateHasChanged();
+        }
+    }
+}

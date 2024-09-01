@@ -1,0 +1,554 @@
+﻿@page "/"
+@using System.Data.SqlClient
+@using Blazored.Toast.Services
+@using Dapper
+@using Microsoft.AspNetCore.SignalR.Client
+@using System.Text
+@using kTVCSSBlazor.Data
+@using kTVCSSBlazor.Db.Models.Matches
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject Db.Interfaces.IUserFeed feed
+@inject HubConnection hubConnection
+@inject IHttpContextAccessor http
+@inject IJSRuntime JS
+@inject IToastService toastService
+@inject IHttpContextAccessor httpContextAccessor
+@inject Db.Interfaces.IPlayers repo
+@inject Db.Interfaces.IAdmins admin
+@inject IConfiguration config
+@using Dapper
+@using Microsoft.Data.SqlClient
+@inject SweetAlertService Swal
+
+<PageTitle>kTVCSS @@ Главная</PageTitle>
+
+<kTVCSSBlazor.Components.Layout.Bar display="block"/>
+
+@using MudBlazor
+@using System.Collections.Generic
+@using CurrieTechnologies.Razor.SweetAlert2
+@using kTVCSSBlazor.Db.Models.UserFeed
+@using SqlConnection = Microsoft.Data.SqlClient.SqlConnection
+
+<MudContainer MaxWidth="MaxWidth.Large">
+    <MudAlert Style="margin-bottom: 1%" Severity="Severity.Info">С 30 августа 2024 года на проекте начался новый рейтинговый сезон - всем игрокам была сброшена статистика.</MudAlert>
+    <MudAlert Style="margin-bottom: 1%" Severity="Severity.Error">Рейтинг и прочие вещи восстанавливаться по просьбам не будут. Все в равных условиях и проходят калибровку вновь.</MudAlert>
+    <MudAlert Style="margin-bottom: 1%" Severity="Severity.Warning">Некоторые учетные записи были удалены по техническим причинам. Если Вы были VIP игроком, то привяжите заново TG к профилю и VIP доступ будет возвращен.</MudAlert>
+    
+    <MudTabs Elevation="2" Rounded="true" Centered="true">
+        <MudTabPanel Style="margin-bottom: 1%" Icon="@Icons.Material.Filled.Article" Text="Посты">
+            <MudPaper Style="margin-bottom: 1%;margin-top: 1%" Elevation="4" Class="pa-4">
+                <MudTextField Disabled="disabled" @bind-Value="newPostContent" Label="Что у вас нового?" Variant="Variant.Filled" FullWidth="true"/>
+                <MudStack Row="!isMobile">
+                    <MudButton Disabled="disabled" StartIcon="@MudBlazor.Icons.Material.Filled.PostAdd" Color="Color.Primary" Class="mt-3" OnClick="PostNews">Опубликовать</MudButton>
+
+                    <MudFileUpload Style="@(isMobile ? "margin: auto;" : "")" Class="mt-3" T="IBrowserFile" OnFilesChanged="@(async (InputFileChangeEventArgs args) => { await OnFileUpload(args.File); })">
+                        <ButtonTemplate>
+                            <MudButton Disabled="disabled" HtmlTag="label"
+                                       Color="Color.Primary"
+                                       StartIcon="@MudBlazor.Icons.Material.Filled.CloudUpload"
+                                       for="@context">
+                                Добавить вложение
+                            </MudButton>
+                        </ButtonTemplate>
+                    </MudFileUpload>
+                </MudStack>
+
+                @if (fileUploading)
+                {
+                    <MudText Color="Color.Warning" Typo="Typo.body2">Подождите, идет загрузка файла...</MudText>
+                }
+                else 
+                {
+                    @if (uploadedFile != null)
+                    {
+                        <MudText Typo="Typo.body2">Файл загружен: @uploadedFile.Name</MudText>
+                        <MudText Typo="Typo.body2">Теперь можете публиковать пост!</MudText>
+                    }
+                }
+                
+            </MudPaper>
+
+            @if (posts.Any())
+            {
+                @foreach (var post in posts)
+                {
+                    <MudPaper Class="pa-4 mb-4" Width="100%" Elevation="1">
+                        <MudGrid>
+                            <MudItem md="1" xs="3">
+                                <MudAvatar Size="Size.Large" Image=@post.AuthorAvatar Alt=@post.AuthorName/>
+                            </MudItem>
+                            <MudItem md="10" xs="9">
+                                @if (post.IsVip)
+                                {
+                                    <MudLink Typo="Typo.body1" Color="Color.Warning" Href="@string.Concat($"/player/{post.AuthorId}")">
+                                        <MudText Typo="Typo.h6">@post.AuthorName</MudText>
+                                    </MudLink>
+                                }
+                                else if (post.IsAdmin)
+                                {
+                                    <MudLink Typo="Typo.body1" Color="Color.Error" Href="@string.Concat($"/player/{post.AuthorId}")">
+                                        <MudText Typo="Typo.h6">@post.AuthorName</MudText>
+                                    </MudLink>
+                                }
+                                else
+                                {
+                                    <MudLink Typo="Typo.body1" Color="Color.Inherit" Href="@string.Concat($"/player/{post.AuthorId}")">
+                                        <MudText Typo="Typo.h6">@post.AuthorName</MudText>
+                                    </MudLink>
+                                }
+                                <MudText Typo="Typo.caption">@post.PostDate.ToString("g")</MudText>
+                            </MudItem>
+                        </MudGrid>
+                        <MudText Typo="Typo.body1" Class="mt-3">@post.Content</MudText>
+                        @if (!string.IsNullOrEmpty(post.MediaUrl))
+                        {
+                            if (post.MediaType == MediaType.Image)
+                            {
+                                <MudImage @onclick="@(() => { _currentImage = @post.MediaUrl; ToggleOpen(); })" Src=@post.MediaUrl Alt="Image" Style="@string.Concat("cursor: pointer;margin-top:1%;max-width: ", @imgWidth)"/>
+                            }
+                            else if (post.MediaType == MediaType.Video)
+                            {
+                                <video style="max-width: @videoWidth" controls>
+                                    <source src=@post.MediaUrl type="video/mp4">
+                                    Your browser does not support the video tag.
+                                </video>
+                            }
+                        }
+                        <MudItem Style="margin-top:1%" md="6" xs="12">
+                            <MudStack Row>
+                                <MudFab Size="Size.Small" StartIcon="@Icons.Material.Filled.ThumbUp" Color="Color.Success" OnClick="() => ToggleLike(post.PostId)" Label="@post.LikesCount.ToString()"/>
+                                <MudFab Size="Size.Small" StartIcon="@Icons.Material.Filled.ThumbDown" Color="Color.Error" OnClick="() => ToggleDislike(post.PostId)" Label="@post.DislikesCount.ToString()"/>
+                                @if (isAdmin || post.AuthorId == AuthProvider.CurrentUser.Id)
+                                {
+                                    <MudFab Color="Color.Error" OnClick="() => RemovePost(post.PostId)" Size="Size.Small" StartIcon="@Icons.Material.Filled.RemoveCircle" Label="Удалить"></MudFab>
+                                }
+                            </MudStack>
+                        </MudItem>
+                        @if (post.Comments.Any())
+                        {
+                            <MudDivider Class="mt-4"/>
+                            <MudText Typo="Typo.h6" Class="mt-2">Комментарии</MudText>
+                            @if (post.Comments.Count() > 3)
+                            {
+                                <MudGrid Class="mt-2">
+                                    <MudItem md="1" xs="3">
+                                        <MudAvatar Size="Size.Large" Image=@post.Comments[0].AuthorAvatar Alt=@post.Comments[0].AuthorName/>
+                                    </MudItem>
+                                    <MudItem md="10" xs="9">
+                                        @if (post.Comments[0].IsVip)
+                                        {
+                                            <MudLink Typo="Typo.body1" Color="Color.Warning" Href="@string.Concat($"/player/{post.Comments[0].AuthorId}")">
+                                                <MudText Typo="Typo.body1">@post.Comments[0].AuthorName</MudText>
+                                            </MudLink>
+                                        }
+                                        else if (post.Comments[0].IsAdmin)
+                                        {
+                                            <MudLink Typo="Typo.body1" Color="Color.Error" Href="@string.Concat($"/player/{post.Comments[0].AuthorId}")">
+                                                <MudText Typo="Typo.body1">@post.Comments[0].AuthorName</MudText>
+                                            </MudLink>
+                                        }
+                                        else
+                                        {
+                                            <MudLink Typo="Typo.body1" Color="Color.Inherit" Href="@string.Concat($"/player/{post.Comments[0].AuthorId}")">
+                                                <MudText Typo="Typo.body1">@post.Comments[0].AuthorName</MudText>
+                                            </MudLink>
+                                        }
+                                        <MudText Typo="Typo.caption">@post.Comments[0].CommentDate.ToString("g")</MudText>
+                                        <MudText Typo="Typo.body1" Class="mt-1">@post.Comments[0].Content</MudText>
+                                    </MudItem>
+                                </MudGrid>
+                                <MudGrid Class="mt-2">
+                                    <MudItem md="1" xs="3">
+                                        <MudAvatar Size="Size.Large" Image=@post.Comments[1].AuthorAvatar Alt=@post.Comments[1].AuthorName/>
+                                    </MudItem>
+                                    <MudItem md="10" xs="9">
+                                        @if (post.Comments[1].IsVip)
+                                        {
+                                            <MudLink Typo="Typo.body1" Color="Color.Warning" Href="@string.Concat($"/player/{post.Comments[1].AuthorId}")">
+                                                <MudText Typo="Typo.body1">@post.Comments[1].AuthorName</MudText>
+                                            </MudLink>
+                                        }
+                                        else if (post.Comments[1].IsAdmin)
+                                        {
+                                            <MudLink Typo="Typo.body1" Color="Color.Error" Href="@string.Concat($"/player/{post.Comments[1].AuthorId}")">
+                                                <MudText Typo="Typo.body1">@post.Comments[1].AuthorName</MudText>
+                                            </MudLink>
+                                        }
+                                        else
+                                        {
+                                            <MudLink Typo="Typo.body1" Color="Color.Inherit" Href="@string.Concat($"/player/{post.Comments[1].AuthorId}")">
+                                                <MudText Typo="Typo.body1">@post.Comments[1].AuthorName</MudText>
+                                            </MudLink>
+                                        }
+                                        <MudText Typo="Typo.caption">@post.Comments[1].CommentDate.ToString("g")</MudText>
+                                        <MudText Typo="Typo.body1" Class="mt-1">@post.Comments[1].Content</MudText>
+                                    </MudItem>
+                                </MudGrid>
+                                <MudGrid Class="mt-2">
+                                    <MudItem md="1" xs="3">
+                                        <MudAvatar Size="Size.Large" Image=@post.Comments[2].AuthorAvatar Alt=@post.Comments[2].AuthorName/>
+                                    </MudItem>
+                                    <MudItem md="10" xs="9">
+                                        @if (post.Comments[2].IsVip)
+                                        {
+                                            <MudLink Typo="Typo.body1" Color="Color.Warning" Href="@string.Concat($"/player/{post.Comments[2].AuthorId}")">
+                                                <MudText Typo="Typo.body1">@post.Comments[2].AuthorName</MudText>
+                                            </MudLink>
+                                        }
+                                        else if (post.Comments[2].IsAdmin)
+                                        {
+                                            <MudLink Typo="Typo.body1" Color="Color.Error" Href="@string.Concat($"/player/{post.Comments[2].AuthorId}")">
+                                                <MudText Typo="Typo.body1">@post.Comments[2].AuthorName</MudText>
+                                            </MudLink>
+                                        }
+                                        else
+                                        {
+                                            <MudLink Typo="Typo.body1" Color="Color.Inherit" Href="@string.Concat($"/player/{post.Comments[2].AuthorId}")">
+                                                <MudText Typo="Typo.body1">@post.Comments[2].AuthorName</MudText>
+                                            </MudLink>
+                                        }
+                                        <MudText Typo="Typo.caption">@post.Comments[2].CommentDate.ToString("g")</MudText>
+                                        <MudText Typo="Typo.body1" Class="mt-1">@post.Comments[2].Content</MudText>
+                                    </MudItem>
+                                </MudGrid>
+                                <MudExpansionPanels>
+                                    <MudExpansionPanel Style="margin-top: 1%;box-shadow: none;" Text="Остальные комментарии">
+                                        @foreach (var comment in post.Comments.Skip(3))
+                                        {
+                                            <MudGrid Class="mt-2">
+                                                <MudItem md="1" xs="3">
+                                                    <MudAvatar Size="Size.Large" Image=@comment.AuthorAvatar Alt=@comment.AuthorName/>
+                                                </MudItem>
+                                                <MudItem md="10" xs="9">
+                                                    @if (comment.IsVip)
+                                                    {
+                                                        <MudLink Typo="Typo.body1" Color="Color.Warning" Href="@string.Concat($"/player/{comment.AuthorId}")">
+                                                            <MudText Typo="Typo.body1">@comment.AuthorName</MudText>
+                                                        </MudLink>
+                                                    }
+                                                    else if (comment.IsAdmin)
+                                                    {
+                                                        <MudLink Typo="Typo.body1" Color="Color.Error" Href="@string.Concat($"/player/{comment.AuthorId}")">
+                                                            <MudText Typo="Typo.body1">@comment.AuthorName</MudText>
+                                                        </MudLink>
+                                                    }
+                                                    else
+                                                    {
+                                                        <MudLink Typo="Typo.body1" Color="Color.Inherit" Href="@string.Concat($"/player/{comment.AuthorId}")">
+                                                            <MudText Typo="Typo.body1">@comment.AuthorName</MudText>
+                                                        </MudLink>
+                                                    }
+                                                    <MudText Typo="Typo.caption">@comment.CommentDate.ToString("g")</MudText>
+                                                    <MudText Typo="Typo.body1" Class="mt-1">@comment.Content</MudText>
+                                                </MudItem>
+                                            </MudGrid>
+                                        }
+                                    </MudExpansionPanel>
+                                </MudExpansionPanels>
+                            }
+                            else
+                            {
+                                @foreach (var comment in post.Comments)
+                                {
+                                    <MudGrid Class="mt-2">
+                                        <MudItem md="1" xs="3">
+                                            <MudAvatar Size="Size.Large" Image=@comment.AuthorAvatar Alt=@comment.AuthorName/>
+                                        </MudItem>
+                                        <MudItem md="10" xs="9">
+                                            @if (comment.IsVip)
+                                            {
+                                                <MudLink Typo="Typo.body1" Color="Color.Warning" Href="@string.Concat($"/player/{comment.AuthorId}")">
+                                                    <MudText Typo="Typo.body1">@comment.AuthorName</MudText>
+                                                </MudLink>
+                                            }
+                                            else if (comment.IsAdmin)
+                                            {
+                                                <MudLink Typo="Typo.body1" Color="Color.Error" Href="@string.Concat($"/player/{comment.AuthorId}")">
+                                                    <MudText Typo="Typo.body1">@comment.AuthorName</MudText>
+                                                </MudLink>
+                                            }
+                                            else
+                                            {
+                                                <MudLink Typo="Typo.body1" Color="Color.Inherit" Href="@string.Concat($"/player/{comment.AuthorId}")">
+                                                    <MudText Typo="Typo.body1">@comment.AuthorName</MudText>
+                                                </MudLink>
+                                            }
+                                            <MudText Typo="Typo.caption">@comment.CommentDate.ToString("g")</MudText>
+                                            <MudText Typo="Typo.body1" Class="mt-1">@comment.Content</MudText>
+                                        </MudItem>
+                                    </MudGrid>
+                                }
+                            }
+                        }
+                        <MudTextField Disabled="disabled" @bind-Value="post.NewComment" Placeholder="Напишите комментарий" Class="mt-3" Width="100%"/>
+                        <MudButton Disabled="disabled" OnClick="() => AddComment(post)" Class="mt-2" Variant="Variant.Filled" Color="Color.Primary">Отправить</MudButton>
+                    </MudPaper>
+                }
+            }
+        </MudTabPanel>
+        <MudTabPanel Text="Новости" Icon="@Icons.Material.Filled.Newspaper">
+            <MudPaper Style="margin-top: 1%" Elevation="4" Class="pa-3">
+                @if (newsList is null)
+                {
+                    <MudText Typo="Typo.body1">Загрузка новостей...</MudText>
+                }
+                else if (!newsList.Any())
+                {
+                    <MudText Typo="Typo.body1">Новостей нет.</MudText>
+                }
+                else
+                {
+                    @foreach (var news in newsList)
+                    {
+                        <MudCard Class="my-4">
+                            <MudCardMedia Image="@news.HeaderPictureURL" AspectRatio="16:9"/>
+                            <MudCardContent>
+                                <MudLink Color="Color.Inherit" Href="@string.Concat("/article/", news.GUID)">
+                                    <MudText Typo="Typo.h6">@news.Title</MudText>
+                                </MudLink>
+                                <MudText Typo="Typo.body2">@news.Description</MudText>
+                                <MudText Typo="Typo.subtitle1">@news.ShortText</MudText>
+                            </MudCardContent>
+                        </MudCard>
+                    }
+                }
+            </MudPaper>
+        </MudTabPanel>
+        <MudTabPanel Text="Стримы" Icon="@Icons.Material.Filled.LiveTv">
+            <MudGrid Style="margin-top: 1%" Justify="Justify.Center">
+                <MudItem xs="12" md="6">
+                    <iframe style="height: 360px" src="https://player.twitch.tv/?channel=sixxr1z&parent=ktvcss.ru" frameborder="0" allowfullscreen="true" scrolling="no" height="378" width="620"></iframe>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <iframe style="height: 360px" src="https://player.twitch.tv/?channel=flonara1903&parent=ktvcss.ru" frameborder="0" allowfullscreen="true" scrolling="no" height="378" width="620"></iframe>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <iframe style="height: 360px" src="https://player.twitch.tv/?channel=d1sjke666&parent=ktvcss.ru" frameborder="0" allowfullscreen="true" scrolling="no" height="378" width="620"></iframe>
+                </MudItem>
+                <MudItem xs="12" md="6">
+                    <iframe style="height: 360px" src="https://player.twitch.tv/?channel=jackn1ke_&parent=ktvcss.ru" frameborder="0" allowfullscreen="true" scrolling="no" height="378" width="620"></iframe>
+                </MudItem>
+            </MudGrid>
+        </MudTabPanel>
+    </MudTabs>
+</MudContainer>
+
+@code {
+    private string newPostContent;
+    private IBrowserFile uploadedFile;
+    private string uploadedFilePath;
+    private List<Post> posts = new List<Post>();
+    private bool isMobile;
+    private bool isAdmin;
+    private bool isVip;
+    private List<Db.Models.Arcticles.Article> newsList = new();
+
+    private string imgWidth = "40%";
+    private string videoWidth = "50%";
+
+    private string _currentImage = "";
+
+    private bool disabled = false;
+
+    private bool _open;
+
+    private bool fileUploading;
+
+    private void ToggleOpen()
+    {
+        SweetAlertOptions options = new();
+        options.Html = $"<div><img style='width:50%' src='{_currentImage}' /></div>";
+        options.CloseButtonAriaLabel = "Закрыть";
+        options.ShowConfirmButton = true;
+        options.ConfirmButtonText = "Закрыть";
+        options.Width = "80vw";
+        Swal.FireAsync(options);
+    }
+
+    private void ToggleLike(int postId)
+    {
+        feed.Like(postId, AuthProvider.CurrentUser.Id, true);
+        posts.First(x => x.PostId == postId).Likes = feed.GetPost(postId).Likes;
+    }
+
+    private void RemovePost(int postId)
+    {
+        posts.RemoveAll(x => x.PostId == postId);
+        feed.RemovePost(postId);
+    }
+
+    private void ToggleDislike(int postId)
+    {
+        feed.Like(postId, AuthProvider.CurrentUser.Id, false);
+        posts.First(x => x.PostId == postId).Likes = feed.GetPost(postId).Likes;
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            isMobile = true;
+            if (isMobile)
+            {
+                videoWidth = "100%";
+                imgWidth = "100%";
+            }
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            posts.AddRange(feed.GetPosts());
+
+            JS.InvokeVoidAsync("hideLoadBar");
+
+            StateHasChanged();
+
+            isVip = await repo.IsVip(AuthProvider.CurrentUser.SteamId);
+            isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+
+            var profile = repo.GetPlayerInfo(AuthProvider.CurrentUser.Id);
+
+            if (profile.MainInfo.Block == 1)
+            {
+                disabled = true;
+            }
+
+            if (profile.MainInfo.SteamID == "STEAM_UNDEFINED")
+            {
+                disabled = true;
+            }
+
+            using (var sql = new SqlConnection(config.GetConnectionString("db")))
+            {
+                sql.Open();
+
+                var arcticles = sql.Query<Db.Models.Arcticles.Article>("SELECT * FROM Feed ORDER BY DATETIME DESC");
+
+                newsList.AddRange(arcticles);
+            }
+
+            StateHasChanged();
+        }
+    }
+
+    private async Task OnFileUpload(IBrowserFile file)
+    {
+        fileUploading = true;
+
+        if (file.Size > 512 * 1024 * 1024)
+        {
+            toastService.ShowError("Загружаемый файл может быть максимум 512 МБайт!");
+            return;
+        }
+
+        if (!file.ContentType.Contains("video/mp4") && !file.ContentType.Contains("image"))
+        {
+            toastService.ShowError("Загружаемый файл должен быть картинкой или mp4 видео!");
+            return;
+        }
+
+        string guid = Guid.NewGuid().ToString();
+
+        string fileName = Path.Combine("wwwroot", "uploads", $"{guid}{Path.GetExtension(file.Name)}");
+        uploadedFilePath = Path.Combine("uploads", $"{guid}{Path.GetExtension(file.Name)}");
+        var memoryStream = new MemoryStream();
+        try
+        {
+            await file.OpenReadStream(file.Size).CopyToAsync(memoryStream);
+
+            await using (var fs = new FileStream(fileName, FileMode.Create, FileAccess.Write))
+            {
+                memoryStream.WriteTo(fs);
+            }
+
+            uploadedFile = file;
+        }
+        catch (Exception ex)
+        {
+
+        }
+
+        fileUploading = false;
+    }
+
+    private void PostNews()
+    {
+        if (!string.IsNullOrWhiteSpace(newPostContent))
+        {
+            var post = new Post()
+            {
+                AuthorAvatar = AuthProvider.CurrentUser.AvatarUrl,
+                AuthorId = AuthProvider.CurrentUser.Id,
+                AuthorName = AuthProvider.CurrentUser.Username,
+                Content = newPostContent,
+                MediaType = uploadedFile?.ContentType == "video/mp4" ? MediaType.Video : MediaType.Image,
+                MediaUrl = uploadedFile != null ? $"{uploadedFilePath}" : null,
+                PostDate = DateTime.Now,
+            };
+
+            if (isVip)
+            {
+                post.IsVip = true;
+            }
+
+            if (isAdmin)
+            {
+                post.IsVip = false;
+                post.IsAdmin = true;
+            }
+
+            feed.Add(post);
+
+            newPostContent = string.Empty;
+            uploadedFile = null;
+
+            JS.InvokeVoidAsync("showLoadBar");
+
+            posts.Clear();
+
+            posts.AddRange(feed.GetPosts());
+
+            JS.InvokeVoidAsync("hideLoadBar");
+
+            toastService.ShowSuccess("Пост был опубликован!");
+        }
+    }
+
+    private void AddComment(Post post)
+    {
+        if (!string.IsNullOrEmpty(post.NewComment))
+        {
+            var com = new Comment
+            {
+                AuthorAvatar = AuthProvider.CurrentUser.AvatarUrl,
+                AuthorId = AuthProvider.CurrentUser.Id,
+                AuthorName = AuthProvider.CurrentUser.Username,
+                Content = post.NewComment,
+                PostId = post.PostId
+            };
+
+            if (isVip)
+            {
+                com.IsVip = true;
+            }
+
+            if (isAdmin)
+            {
+                com.IsVip = false;
+                com.IsAdmin = true;
+            }
+
+            feed.AddComment(com, post);
+
+            posts.First(x => x.PostId == post.PostId).Comments = feed.GetPost(post.PostId).Comments;
+
+            post.NewComment = string.Empty;
+        }
+    }
+
+}

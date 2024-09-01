@@ -1,0 +1,72 @@
+﻿@page "/createteam"
+@using CurrieTechnologies.Razor.SweetAlert2
+@using kTVCSSBlazor.Db.Models.Teams
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@inject Db.Interfaces.ITeams repo
+@inject SweetAlertService Swal
+@inject IDialogService DialogService
+@inject IHttpClientFactory ClientFactory
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor httpContextAccessor
+
+<PageTitle>kTVCSS @@ Создание новой команды</PageTitle>
+
+<center><h2>Создание новой команды</h2></center>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem Class="d-flex flex-column" sm="4" xs="12">
+        <MudTextField Style="margin-bottom:2%" @bind-Value="@team" Label="Введите название команды" Variant="Variant.Text"></MudTextField>
+        <MudButton OnClick="Create" Variant="Variant.Filled">Создать</MudButton>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private string team { get; set; }
+
+    async Task ShowAlert(string caption, string text, int time, SweetAlertIcon icon, Func<Task> customCallback)
+    {
+        var options = new SweetAlertOptions
+            {
+                TimerProgressBar = true,
+                Timer = time,
+                Title = caption,
+                Text = text,
+                Icon = icon,
+                WillClose = new SweetAlertCallback(async () =>
+                {
+                    await customCallback();
+                })
+            };
+
+        await Swal.FireAsync(options);
+    }
+
+    private async Task Create()
+    {
+        var result = repo.CreateTeam(team, AuthProvider.CurrentUser.SteamId);
+
+        if (result == 0)
+        {
+            await ShowAlert("Ошибка", "Команда с таким названием уже существует!", 3000, SweetAlertIcon.Error, null);
+            return;
+        }
+        if (result == 1)
+        {
+            await ShowAlert("Ошибка", "У Вас уже есть команда!", 3000, SweetAlertIcon.Error, null);
+            return;
+        }
+        if (result == 2)
+        {
+            await ShowAlert("Ошибка", "Вы уже состоите в команде!", 3000, SweetAlertIcon.Error, null);
+            return;
+        }
+        if (result == 4)
+        {
+            await ShowAlert("Успех", "Команда успешно создана!", 3000, SweetAlertIcon.Success, async () =>
+            {
+                NavigationManager.NavigateTo("/team/" + repo.GetTeamBySteamID(AuthProvider.CurrentUser.SteamId), true);
+            });            
+        }
+    }
+}

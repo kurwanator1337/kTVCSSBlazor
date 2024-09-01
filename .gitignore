@@ -1,0 +1,13 @@
+﻿################################################################################
+# Данный GITIGNORE-файл был автоматически создан Microsoft(R) Visual Studio.
+################################################################################
+
+/.idea/.idea.kTVCSSBlazor/.idea
+/.vs/kTVCSSBlazor
+/.vs
+/kTVCSSBlazor/bin
+/kTVCSSBlazor/obj
+/kTVCSSBlazor/appsettings.Development.json
+/kTVCSSBlazor/appsettings.json
+/kTVCSSBlazor/logger.txt
+/kTVCSSBlazor/wwwroot

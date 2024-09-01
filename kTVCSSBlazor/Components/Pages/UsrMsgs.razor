@@ -1,0 +1,409 @@
+﻿@page "/chat"
+@using Microsoft.AspNetCore.SignalR.Client
+@using MudBlazor
+@using kTVCSSBlazor.Db.Models.IM
+@inject Db.Interfaces.IIM repo
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject HubConnection hubConnection
+@inject NavigationManager nav
+@inject IJSRuntime JS
+
+<PageTitle>kTVCSS @@ Мессенджер (бета)</PageTitle>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" md="3">
+        <MudCard Style="height: 85svh; overflow-y: auto">
+            <MudCardHeader>
+                <MudText Typo="Typo.h6">Диалоги</MudText>
+            </MudCardHeader>
+            <MudCardContent>
+                @if (items.Count > 0)
+                {
+                    <MudList SelectedValueChanged="@((object obj) => { SelectedItemChanged(obj); })" Color="@Color.Info" Clickable="true">
+                        @foreach (var item in items)
+                        {
+                            if (item.Online)
+                            {
+                                <MudListItem Value="item">
+                                    <MudStack Row>
+                                        <MudBadge Dot="true" Color="Color.Success" Class="">
+                                            <MudAvatar Image="@item.Avatar" />
+                                        </MudBadge>
+                                        <MudText>@item.Name <MudText Typo="Typo.caption" Color="Color.Success">(онлайн)</MudText></MudText>
+                                    </MudStack>
+                                </MudListItem>
+                            }
+                            else
+                            {
+                                <MudListItem Value="item">
+                                    <MudStack Row>
+                                        <MudBadge Dot="true" Color="Color.Error" Class="">
+                                            <MudAvatar Image="@item.Avatar" />
+                                        </MudBadge>
+                                        <MudText>@item.Name <MudText Typo="Typo.caption" Color="Color.Error">(оффлайн)</MudText></MudText>
+                                    </MudStack>
+                                </MudListItem>
+                            }
+                        }
+                    </MudList>
+                }
+                else
+                {
+                    <MudAlert Severity="Severity.Warning">У вас пока нет диалогов</MudAlert>
+                }
+            </MudCardContent>
+        </MudCard>
+    </MudItem>
+    <MudItem xs="12" md="9">
+        <MudCard Style="height: 85svh; overflow-y: auto">
+            <MudCardHeader>
+                @if (currentID == 0)
+                {
+                    <MudText Typo="Typo.h6">@currentChat</MudText>
+                }
+                else
+                {
+                    <MudLink Color="Color.Inherit" Href="@(string.Concat("/player/", currentID))" Typo="Typo.h6">@currentChat</MudLink>
+                }
+                <MudSpacer />
+                <MudIconButton OnClick="@(() => { hubConnection.InvokeAsync("SendRequestToJoinLobby", currentID, AuthProvider.CurrentUser); })" Disabled="@((currentID == 0 ? true : false) && !currentOnline)" Icon="@Icons.Material.Filled.AddCircle" Color="Color.Primary" />
+                <MudIconButton Disabled="true" Icon="@Icons.Material.Filled.FileUpload" Color="Color.Primary" />
+                <MudIconButton Disabled="true" Icon="@Icons.Material.Filled.Image" Color="Color.Primary" />
+                <MudIconButton Disabled="true" Icon="@Icons.Material.Filled.Settings" Color="Color.Primary" />
+            </MudCardHeader>
+            <MudCardContent Style="height: 80%;">
+                <div id="chat-area" @ref=TextAreaRef style="height: 100%; overflow: auto;" class="ma-8 chat">
+                    <div class ="chat-history">
+                        <ul class="m-b-0">
+                            @if (messages.Count > 0)
+                            {
+                                @foreach (var message in messages)
+                                {
+                                    if (message.FromID == me)
+                                    {
+                                        <li class="clearfix">
+                                            <div style="display: flex; justify-content: end; align-items: center;" class="message-data text-right">
+                                                <span style="margin-right: 10px" class="message-data-time">@message.FromName в @message.DateTime.ToShortTimeString() @message.DateTime.ToShortDateString()</span>
+                                                <img src="@message.FromAvatar">
+                                            </div>
+                                            <div class="message other-message float-right"> @message.Text </div>
+                                        </li>
+                                    }
+                                    else
+                                    {
+                                        <li class="clearfix">
+                                            <div style="display: flex; justify-content: start; align-items: center;" class="message-data">
+                                                <img src="@message.FromAvatar">
+                                                <span class="message-data-time">@message.FromName в @message.DateTime.ToShortTimeString() @message.DateTime.ToShortDateString()</span>
+                                            </div>
+                                            <div class="message my-message"> @message.Text </div>
+                                        </li>
+                                    }
+                                }
+                            }
+                        </ul>
+                    </div>
+                </div>
+            </MudCardContent>
+            <MudCardActions>
+                <EditForm Model="message" OnSubmit="SendMsg" style="width: 100%;display: flex">
+                    <MudFocusTrap Style="width: 100%" DefaultFocus="DefaultFocus.FirstChild">
+                        <MudTextField @bind-Value=message Disabled="@(currentChat == "Чат" ? true : false)" Variant="Variant.Outlined" T="string" Placeholder="Напишите сообщение" FullWidth="true"></MudTextField>
+                    </MudFocusTrap>
+                    <MudIconButton OnClick="@(() => { SendMsg(); })" ButtonType="ButtonType.Submit" Icon="@Icons.Material.Filled.Send" Color="Color.Primary" />
+                </EditForm>
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+<style>
+    .card {
+        background: #fff;
+        transition: .5s;
+        border: 0;
+        margin-bottom: 30px;
+        border-radius: .55rem;
+        position: relative;
+        width: 100%;
+        box-shadow: 0 1px 2px 0 rgb(0 0 0 / 10%);
+    }
+
+    .text-right {
+        text-align: right;
+    }
+
+    .chat-app .chat {
+        margin-left: 280px;
+        border-left: 1px solid #eaeaea
+    }
+
+    .chat .chat-header {
+        padding: 15px 20px;
+    }
+
+        .chat .chat-header img {
+            float: left;
+            border-radius: 40px;
+            width: 40px
+        }
+
+        .chat .chat-header .chat-about {
+            float: left;
+            padding-left: 10px
+        }
+
+    .chat .chat-history {
+        padding: 8px;
+    }
+
+        .chat .chat-history ul {
+            padding: 0
+        }
+
+            .chat .chat-history ul li {
+                list-style: none;
+                margin-bottom: 30px
+            }
+
+                .chat .chat-history ul li:last-child {
+                    margin-bottom: 0px
+                }
+
+        .chat .chat-history .message-data {
+            margin-bottom: 15px
+        }
+
+            .chat .chat-history .message-data img {
+                border-radius: 40px;
+                width: 40px
+            }
+
+        .chat .chat-history .message-data-time {
+            color: #d9d9d9;
+            padding-left: 6px;
+        }
+
+
+        .chat .chat-history .message {
+            padding: 18px 20px;
+            line-height: 26px;
+            font-size: 16px;
+            border-radius: 7px;
+            display: inline-block;
+            position: relative;
+            background: #353537;
+        }
+
+            .chat .chat-history .message:after {
+                bottom: 100%;
+                left: 7%;
+                border: solid transparent;
+                content: " ";
+                height: 0;
+                width: 0;
+                position: absolute;
+                pointer-events: none;
+                border-width: 10px;
+                margin-left: -10px
+            }
+
+        .chat .chat-history .my-message {
+        }
+
+            .chat .chat-history .my-message:after {
+                bottom: 100%;
+                left: 30px;
+                border: solid transparent;
+                content: " ";
+                height: 0;
+                width: 0;
+                position: absolute;
+                pointer-events: none;
+                border-width: 10px;
+                margin-left: -10px
+            }
+
+        .chat .chat-history .other-message {
+            background: #2f2f33;
+            text-align: right;
+        }
+
+            .chat .chat-history .other-message:after {
+                left: 73%
+            }
+
+    .chat .chat-message {
+        padding: 20px
+    }
+
+    .float-right {
+        float: right
+    }
+
+    .clearfix:after {
+        visibility: hidden;
+        display: block;
+        font-size: 0;
+        content: " ";
+        clear: both;
+        height: 0
+    }
+</style>
+
+<script>
+    function scrollToEnd(textarea) {
+        let div = document.getElementById('chat-area');
+        div.scrollTop = div.scrollHeight;
+    }
+</script>
+
+@functions {
+    ElementReference TextAreaRef;
+
+    void ScrollToEnd()
+    {
+        JS.InvokeVoidAsync("scrollToEnd", new object[] { TextAreaRef });
+    }
+}
+
+@code {
+    private object selectedItem { get; set; }
+    private int me = 0;
+    private List<Message> messages = new List<Message>();
+    private List<DialogItem> items = new List<DialogItem>();
+    private string currentChat = "Чат";
+    private int currentID = 0;
+    private string currentName = "";
+    private bool currentOnline = false;
+    private string currentAvatar = "";
+    private string message = "";
+    private MudListItem item { get; set; }
+
+    [Parameter] 
+    [SupplyParameterFromQuery]
+    public string Selected { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        me = AuthProvider.CurrentUser.Id;
+
+        nav.LocationChanged += OnLocationChanged;
+
+        items.AddRange(repo.GetDialogs(me));
+
+        hubConnection.On("GetPrivateMessage", async (string text, int id) =>
+                {
+                    if (currentID == id)
+                    {
+                        var msg = new Message()
+                        {
+                            DateTime = DateTime.Now,
+                            ToAvatar = AuthProvider.CurrentUser.AvatarUrl,
+                            ToID = me,
+                            ToName = AuthProvider.CurrentUser.Username,
+                            Text = text.Substring(text.IndexOf(":") + 1),
+                            FromID = currentID,
+                            FromName = currentName,
+                            FromAvatar = currentAvatar
+                        };
+                        messages.Add(msg);
+                        repo.SetMessageReaded(msg);
+                        InvokeAsync(StateHasChanged);
+                        ScrollToEnd();
+                    }
+                });
+
+        if (items.Count > 0)
+        {
+            //selectedItem = items.FirstOrDefault();
+        }
+
+        if (!string.IsNullOrEmpty(Selected))
+        {
+            selectedItem = items.FirstOrDefault(x => x.ID == int.Parse(Selected));
+            await SelectedItemChanged(selectedItem);
+            InvokeAsync(ScrollToEnd);
+        }
+
+        RefreshContacts();
+    }
+
+    private bool locChanged = false;
+
+    private void OnLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        locChanged = true;
+    }
+
+    private async Task RefreshContacts()
+    {
+        while (true)
+        {
+            if (locChanged)
+            {
+                return;
+            }
+
+            if (items.Count > 0)
+            {
+                foreach (var item in items)
+                {
+                    if (kTVCSSBlazor.Hubs.kTVCSSHub.OnlineUsers.Where(x => x.Value.Id == item.ID).Any())
+                    {
+                        item.Online = true;
+                    }
+                    else
+                    {
+                        item.Online = false;
+                    }
+                }
+            }
+
+            InvokeAsync(StateHasChanged);
+
+            await Task.Delay(5000);
+        }
+    }
+
+    private async Task SendMsg()
+    {
+        if (string.IsNullOrEmpty(message))
+        {
+            return;
+        }
+        repo.SendMessage(me, currentID, message);
+        messages.Add(new Message()
+            {
+                DateTime = DateTime.Now,
+                FromAvatar = AuthProvider.CurrentUser.AvatarUrl,
+                FromID = me,
+                FromName = AuthProvider.CurrentUser.Username,
+                Text = message,
+                ToID = currentID,
+                ToName = currentName,
+                ToAvatar = currentAvatar
+            });
+        kTVCSSBlazor.Hubs.kTVCSSHub.Instance.SendDM(AuthProvider.CurrentUser.Username, me, currentID, message);
+        message = "";
+        await Task.Delay(10);
+        InvokeAsync(ScrollToEnd);
+    }
+
+    private async Task SelectedItemChanged(object item)
+    {
+        if (item is not null)
+        {
+            selectedItem = item;
+            currentChat = "Чат с " + (item as DialogItem).Name;
+            currentID = (item as DialogItem).ID;
+            currentName = (item as DialogItem).Name;
+            currentAvatar = (item as DialogItem).Avatar;
+            currentOnline = (item as DialogItem).Online;
+            messages.Clear();
+            messages.AddRange(repo.GetMessages(me, (item as DialogItem).ID));
+            await Task.Delay(10);
+            InvokeAsync(ScrollToEnd);
+        }
+    }
+}

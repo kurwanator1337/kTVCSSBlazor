@@ -1,0 +1,468 @@
+﻿@using Blazored.Toast.Services
+@using CurrieTechnologies.Razor.SweetAlert2
+@using Microsoft.AspNetCore.SignalR.Client
+@using kTVCSSBlazor.Components.Icons
+@using kTVCSSBlazor.Db.Interfaces
+@using kTVCSSBlazor.Db.Models.Players
+@using kTVCSSBlazor.Hubs
+@inject Db.Interfaces.IPlayers repo
+@inject Db.Interfaces.ITeams teams
+@inject Db.Interfaces.IVips vip
+@inject NavigationManager NavigationManager
+@inject ClipboardService ClipboardService
+@inject SweetAlertService Swal
+@inject HubConnection hubConnection
+@inject Db.Interfaces.IAdmins admin
+@inject Db.Interfaces.IModerators moder
+@inject IToastService toastService
+@inject IIM msgc
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" md="12">
+        <MudCard Style="position: relative;width:100%">
+            <div class="px-2 py-1" style="position: absolute;display: flex;width: 100%;justify-content: end;">
+               @*  <MudText Typo="Typo.body1" Color="Color.Primary">TIER-@player.MainInfo.Tier</MudText> *@
+                @if (itIsAdmin)
+                {
+                    <MudText Typo="Typo.body1" Color="Color.Primary">Администратор</MudText>
+                }
+                else
+                {
+                    @if (itIsVip)
+                    {
+                        <MudText Typo="Typo.body1" Color="Color.Warning">VIP-игрок</MudText>
+                    }
+                }
+            </div>
+            <div style="position: absolute;top: 10%;left: 0;right: 0;margin: auto;width: 128px;height: 128px;">
+                <div>
+                    @if (kTVCSSHub.OnlineUsers.Where(x => x.Value.Id == Convert.ToInt32(Id)).Any())
+                    {
+                        <MudBadge Origin="Origin.TopRight" Color="Color.Success" Overlap="true" Bordered="true">
+                            <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000; background-repeat: no-repeat; background-position: 50%;" src="@player.MainInfo.PhotoUrl" class="mud-avatar" width="128" height="128">
+                        </MudBadge>
+                    }
+                    else
+                    {
+                        <MudBadge Color="Color.Error" Overlap="true" Bordered="true">
+                            <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000; background-repeat: no-repeat; background-position: 50%;" src="@player.MainInfo.PhotoUrl" class="mud-avatar" width="128" height="128">
+                        </MudBadge>
+                    }
+                </div>
+            </div>
+
+            @if (!string.IsNullOrEmpty(player.HeaderPicture))
+            {
+                <MudCardMedia Style="background-color: rgba(0, 0, 0, 0.39);" Image="@player.HeaderPicture" Height="200" />
+            }
+            else
+            {
+                <MudCardMedia Image="@player.HeaderPicture" Height="200" />
+            }
+            <MudCardContent Style="padding: 0px">
+                @if (!string.IsNullOrEmpty(player.TeamInfo.Name))
+                {
+                    <MudText Align=Align.Center Typo="Typo.h4">
+                        <div>
+                            #@player.MainInfo.Position
+                            <MudLink Color=Color.Default Typo=Typo.h4 Underline="Underline.Hover" Href="@string.Concat("/team/", player.TeamInfo.ID)">@player.TeamInfo.Name</MudLink>
+                            @player.MainInfo.Name.Replace(player.TeamInfo.Name, null)
+                        </div>
+                    </MudText>
+                }
+                else
+                {
+                    <MudText Align=Align.Center Typo="Typo.h4"><div>#@player.MainInfo.Position @player.MainInfo.Name</div></MudText>
+                    <MudStack Justify="Justify.Center" Row>
+                        @if (!string.IsNullOrEmpty(player.Social.VkId))
+                        {
+                            <MudIconButton Href="@player.Social.VkId" Icon="@MyIcons.VK" Color="Color.White" />
+                        }
+                        @if (!string.IsNullOrEmpty(player.Social.TwitchUrl))
+                        {
+                            <MudIconButton Href="@player.Social.TwitchUrl" Icon="@MyIcons.Twitch" Color="Color.White" />
+                        }
+                        @if (!string.IsNullOrEmpty(player.Social.YoutubeUrl))
+                        {
+                            <MudIconButton Href="@player.Social.YoutubeUrl" Icon="@Icons.Custom.Brands.YouTube" Color="Color.White" />
+                        }
+                    </MudStack>
+                }
+            </MudCardContent>
+            <MudCardActions Style="justify-content: center;padding-top: 0px;">
+                @if (@AuthProvider.CurrentUser.Id == Convert.ToInt32(Id))
+                {
+                    <MudButton OnClick="() => { CopyProfileUrl(); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.CopyAll" Color="Color.Primary">Получить ссылку на профиль</MudButton>
+                }
+                @if (@AuthProvider.CurrentUser.Id == Convert.ToInt32(Id))
+                {
+                    <MudButton Href="/editprofile" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Edit" Color="Color.Primary">Редактировать профиль</MudButton>
+                    @if (isVip)
+                    {
+                        <MudButton OnClick="(() => { ResetStats(); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Clear" Color="Color.Primary">Обнулить статистику</MudButton>
+                    }
+                    else
+                    {
+                        <MudTooltip Text="Чтобы обнулять статистику, необходимо приобрести VIP привилегию">
+                            <MudButton Disabled=true Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Clear" Color="Color.Primary">Обнулить статистику</MudButton>
+                        </MudTooltip>
+                    }
+                }
+                @if (@AuthProvider.CurrentUser.Id != Convert.ToInt32(Id))
+                {
+                    <MudButton OnClick="@(async () => { await SendPrivateMessage(int.Parse(Id)); })" Style="font-size: 0.8em;" Variant="@Variant.Text" StartIcon="@Icons.Material.Filled.Message" Color="@Color.Info">Написать</MudButton>
+                    if (teams.IsPlayerCaptain(AuthProvider.CurrentUser.SteamId))
+                    {
+                        if (string.IsNullOrEmpty(player.TeamInfo.ID))
+                        {
+                            <MudButton OnClick="() => { teams.MakeInvite(AuthProvider.CurrentUser.SteamId, player.MainInfo.SteamID); ShowAlert(add); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AddBusiness" Color="Color.Primary">Пригласить в команду</MudButton>
+                        }
+                    }
+                    if (repo.IsFriend(AuthProvider.CurrentUser.Id, Convert.ToInt32(Id)))
+                    {
+                        <MudButton OnClick="() => { repo.RemoveFriend(AuthProvider.CurrentUser.Id, Convert.ToInt32(Id)); ShowAlert(cancel); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.RemoveCircle" Color="Color.Primary">Удалить из друзей</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton OnClick="() => { var t = repo.AddFriend(AuthProvider.CurrentUser.Id, Convert.ToInt32(Id)); if (t) ShowAlert(add); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary">Добавить в друзья</MudButton>
+                    }
+                }
+                @if (isVip)
+                {
+                    <MudButton OnClick="@(() => { NavigationManager.NavigateTo($"/player/highlights/{Id}"); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Movie" Disabled=false Color="Color.Info">Лучшие моменты</MudButton>
+                }
+                else
+                {
+                    <MudTooltip Text="Чтобы с легкостью искать и скачивать лучшие моменты (сразу с тиками и описанием момента), необходимо приобрести VIP привилегию">
+                        <MudButton Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Movie" Disabled=true Color="Color.Info">Лучшие моменты</MudButton>
+                    </MudTooltip>
+                }
+                @if (@AuthProvider.CurrentUser.Id != Convert.ToInt32(Id))
+                {
+                    <MudButton @onclick="OpenDialog" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Warning" Color="Color.Error">Репорт</MudButton>
+                }
+                @if (player.MainInfo.Block == 1 && @AuthProvider.CurrentUser.Id == Convert.ToInt32(Id))
+                {
+                    <MudButton OnClick="@(() => { UnbanRequest(); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.LockOpen" Color="Color.Warning">Обжаловать бан</MudButton>
+                }
+                @if (isAdmin)
+                {
+                    <MudButton OnClick="@(() => { SetMMR(); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Accessible" Color="Color.Tertiary">Задать MMR</MudButton>
+                    if (player.MainInfo.Block == 1)
+                    {
+                        <MudButton OnClick="@(() => { UnbanPlayer(); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.LockOpen" Color="Color.Success">Разбанить</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton @onclick="OpenBan" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Lock" Color="Color.Secondary">Забанить</MudButton>
+                    }
+                    if (!isModer)
+                    {
+                        <MudButton OnClick="@(() => { admin.SetModerator(player.MainInfo.Id, AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AddModerator" Color="Color.Success">Назначить модератором</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton OnClick="@(() => { admin.RemoveModerator(player.MainInfo.Id, AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.RemoveModerator" Color="Color.Error">Убрать модератора</MudButton>
+                    }
+                    <MudButton OnClick="() => { OpenTeamEditAsAdmin(); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Edit" Color="Color.Primary">Редактировать профиль (admin)</MudButton>
+                }
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+<MudDialog @bind-IsVisible="visible" Options="dialogOptions">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-3" /> Оформление жалобы
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <p>Выберите причину, по которой хотите подать жалобу на игрока</p>
+        <MudSelect @bind-Value=reportReason T="string" Label="Причина" AnchorOrigin="Origin.BottomCenter">
+            <MudSelectItem Value="@("Читерство")" />
+            <MudSelectItem Value="@("Оскорбления")" />
+            <MudSelectItem Value="@("Использование багов")" />
+            <MudSelectItem Value="@("Препятствие игре")" />
+            <MudSelectItem Value="@("Выход с матча")" />
+            <MudSelectItem Value="@("Не зашел на матч")" />
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Submit" Class="px-10">Отправить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<MudDialog @bind-IsVisible="visibleBan" Options="dialogOptionsBan">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Warning" Class="mr-3" /> Оформление бана
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <p>Выберите причину для бана</p>
+        <MudSelect @bind-Value=banReason T="string" Label="Причина" AnchorOrigin="Origin.BottomCenter">
+            @foreach (var reason in kTVCSSBlazor.Db.Models.Players.Block.Reasons.Keys)
+            {
+                <MudSelectItem Value="@($"{reason}")" />
+            }
+        </MudSelect>
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Error" OnClick="SubmitBan" Class="px-10">Забанить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .my-custom-class {
+        backdrop-filter: blur(10px);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public PlayerInfo player { get; set; }
+
+    [Parameter]
+    public kTVCSSAuthenticationStateProvider AuthProvider { get; set; }
+
+    [Parameter]
+    [SupplyParameterFromQuery]
+    public string? Id { get; set; }
+
+    private string add = "Заявка была отправлена!";
+    private string cancel = "Игрок был удален из списка друзей!";
+    private string reportReason = "";
+    private string banReason = "";
+    private bool isVip = false;
+    private bool isAdmin = false;
+    private bool isModer = false;
+    private bool itIsAdmin = false;
+    private bool itIsVip = false;
+
+    private async Task SendPrivateMessage(int user)
+    {
+        var options = new SweetAlertOptions
+            {
+                Title = "Напишите Ваше сообщение",
+                Input = SweetAlertInputType.Text,
+                InputValue = $""
+            };
+
+        var result = await Swal.FireAsync(options);
+
+        if (result.Value is not null)
+        {
+            if (result.Value == "")
+            {
+                return;
+            }
+
+            await hubConnection.SendAsync("SendDM", myself.Username, myself.Id, user, result.Value);
+
+            msgc.SendMessage(myself.Id, user, result.Value);
+
+            toastService.ShowSuccess($"Сообщение было отправлено!");
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var vip = await repo.IsVip(AuthProvider.CurrentUser.SteamId);
+        isVip = vip ? true : false;
+        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+        itIsAdmin = await admin.IsAdmin(player.MainInfo.SteamID);
+        itIsVip = await repo.IsVip(player.MainInfo.SteamID);
+        isModer = await moder.IsModerator(Convert.ToInt32(Id));
+        myself = AuthProvider.CurrentUser;
+    }
+    
+    private async Task SetMMR()
+    {
+        var options = new SweetAlertOptions
+        {
+            Title = "Введите новое значение MMR",
+            Input = SweetAlertInputType.Text,
+            InputValue = $""
+        };
+
+        var result = await Swal.FireAsync(options);
+
+        if (result.Value is not null)
+        {
+            if (result.Value == "")
+            {
+                ShowAlert("Поле не может быть пустым!");
+                return;
+            }
+            admin.SetMMR(player.MainInfo.Id, AuthProvider.CurrentUser.Username, int.Parse(result.Value));
+            NavigationManager.Refresh(true);
+        }
+    }
+
+    private async Task UnbanPlayer()
+    {
+        var options = new SweetAlertOptions
+            {
+                Title = "Введите причину разбана",
+                Input = SweetAlertInputType.Text,
+                InputValue = $""
+            };
+
+        var result = await Swal.FireAsync(options);
+
+        if (result.Value is not null)
+        {
+            if (result.Value == "")
+            {
+                ShowAlert("Поле не может быть пустым!");
+                return;
+            }
+            admin.UnbanPlayer(player.MainInfo.Id, AuthProvider.CurrentUser.Username, result.Value);
+        }
+
+        NavigationManager.Refresh(true);
+    }
+
+    private async Task UnbanRequest()
+    {
+        var options = new SweetAlertOptions
+            {
+                Title = "Опишите Вашу заявку на разбан",
+                Input = SweetAlertInputType.Text,
+                InputValue = $""
+            };
+
+        var result = await Swal.FireAsync(options);
+
+        if (result.Value is not null)
+        {
+            if (result.Value == "")
+            {
+                ShowAlert("Поле не может быть пустым!");
+                return;
+            }
+            admin.UnbanRequest(player.MainInfo.Id, result.Value);
+        }
+
+        ShowAlert("Заявка была отправлена!");
+    }
+
+    async Task ShowAlert(string caption, string text, int time, SweetAlertIcon icon, Func<Task> customCallback)
+    {
+        var options = new SweetAlertOptions
+            {
+                TimerProgressBar = true,
+                Timer = time,
+                Title = caption,
+                Text = text,
+                Icon = icon,
+                WillClose = new SweetAlertCallback(async () =>
+                {
+                    await customCallback();
+                })
+            };
+
+        await Swal.FireAsync(options);
+    }
+
+    async Task ShowAlert(string text)
+    {
+        var options = new SweetAlertOptions
+            {
+                TimerProgressBar = true,
+                Timer = 3000,
+                Title = "",
+                Text = text,
+                WillClose = new SweetAlertCallback(null)
+            };
+
+        await Swal.FireAsync(options);
+    }
+
+    private void CopyProfileUrl()
+    {
+        var options = new SweetAlertOptions
+            {
+                Title = "Ссылка на Ваш профиль",
+                Input = SweetAlertInputType.Text,
+                InputValue = $"{NavigationManager.BaseUri}player/{player.MainInfo.Id}",
+            };
+
+        Swal.FireAsync(options);
+    }
+
+    private User myself = new();
+
+    private DialogOptions dialogOptions = new() { ClassBackground = "my-custom-class" };
+    private DialogOptions dialogOptionsBan = new() { FullWidth = true, ClassBackground = "my-custom-class" };
+    private bool visible;
+    private bool visibleBan;
+    private void OpenDialog() => visible = true;
+    private void OpenBan() => visibleBan = true;
+    private async Task Submit()
+    {
+        visible = false;
+        
+        int me = AuthProvider.CurrentUser.Id;
+
+        string text = reportReason;
+        
+        var options = new SweetAlertOptions
+        {
+            Title = "Детали репорта",
+            InputLabel = "Для того, чтобы модераторам было проще обработать жалобу, приложите доказательства нарушения (ссылка на видео или ссылка на матч с тиками и т.д.)",
+            Input = SweetAlertInputType.Text,
+            Width = "70%",
+            InputValue = $""
+        };
+
+        var result = await Swal.FireAsync(options);
+
+        if (string.IsNullOrEmpty(result.Value)) 
+        {
+            ShowAlert("Нельзя отправлять пустую жалобу! Пожалуйста, не кидайте репорты просто так, иначе Вы сами будете забанены.");
+        }
+        else
+        {
+            repo.MakeReport(me, Convert.ToInt32(Id), text + " - " + result.Value);
+
+            ShowAlert("Жалоба была отправлена!");
+        }
+    }
+    private void SubmitBan()
+    {
+        string me = AuthProvider.CurrentUser.Username;
+        string reason = banReason;
+
+        admin.BanPlayer(Convert.ToInt32(Id), reason, me);
+
+        NavigationManager.Refresh(true);
+
+        visibleBan = false;
+    }
+
+
+    private void OpenTeamEditAsAdmin()
+    {
+        NavigationManager.NavigateTo($"/adminplayer/{Id}", false);
+    }
+
+    private async Task ResetStats()
+    {
+        if (await vip.ResetStats(Convert.ToInt32(Id)))
+        {
+            await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
+                {
+                    NavigationManager.NavigateTo($"/player/{AuthProvider.CurrentUser.Id}", true);
+                });
+        }
+        else
+        {
+            await ShowAlert("Ошибка", "Вам нужно отыграть минимум 10 матчей, чтобы обнулять статистику!", 3000, SweetAlertIcon.Error, async () =>
+                {
+                    
+                });
+        }        
+    }
+}

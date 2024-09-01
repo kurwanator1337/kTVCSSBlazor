@@ -1,0 +1,276 @@
+﻿@page "/friends"
+@using CurrieTechnologies.Razor.SweetAlert2
+@using Microsoft.AspNetCore.SignalR
+@using Microsoft.AspNetCore.SignalR.Client
+@using kTVCSSBlazor.Db.Models.Players
+@using kTVCSSBlazor.Hubs
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject NavigationManager NavigationManager
+@inject Db.Interfaces.IPlayers repo
+@inject HubConnection hubConnection
+@inject SweetAlertService Swal
+@inject IHttpContextAccessor httpContextAccessor
+
+<PageTitle>kTVCSS @@ Мои друзья</PageTitle>
+
+<kTVCSSBlazor.Components.Layout.Bar display="@displayBar" />
+
+<MudTabs Elevation="2" Rounded="true" ApplyEffectsToContainer="true">
+    <MudTabPanel Text="@friendsCaption">
+        @if (!isMobile)
+        {
+            <MudDataGrid Items="@friends" FilterCaseSensitivity=DataGridFilterCaseSensitivity.Ignore Hover="true" Virtualize="true" Height="83svh" FilterMode=DataGridFilterMode.ColumnFilterMenu Filterable="false" SortMode="@SortMode.None" Groupable="false">
+                <Columns>
+                    <TemplateColumn Title="" CellStyle="margin-left: 0;width: 15px" Filterable="false">
+                        <CellTemplate>
+                            @try
+                            {
+                                @if (context.Item.IsOnline)
+                                {
+                                    <MudAvatar Size="Size.Small" Color="Color.Success" Variant="Variant.Filled">
+                                    </MudAvatar>
+                                }
+                                else
+                                {
+                                    <MudAvatar Size="Size.Small" Color="Color.Error" Variant="Variant.Filled">
+                                    </MudAvatar>
+                                }
+                            }
+                            catch (Exception)
+                            {
+
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.Position" Title="" CellStyle="margin-left: 0;width: 5px" />
+                    <TemplateColumn Title="" CellStyle="margin-left: 0;width: 15px" Filterable="false">
+                        <CellTemplate>
+                            <img style="display: flex;justify-content: center;width: 28px;" src="@context.Item.RankName" />
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="" CellStyle="margin-left: 0;width: 10px" Filterable="false">
+                        <CellTemplate>
+                            <img style='display: flex;justify-content: center;cursor: pointer; background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 25px; height: 25px;' src='@context.Item.PhotoUrl' />
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <TemplateColumn Title="Ник" CellStyle="width: 250px">
+                        <CellTemplate>
+                            <MudLink Color="Color.Inherit" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.SteamID" CellStyle="width: 150px" />
+                    <PropertyColumn Property="x => x.KDR" CellStyle="width: 50px" />
+                    <PropertyColumn Property="x => x.HSR" CellStyle="width: 50px" />
+                    <PropertyColumn Property="x => x.AVG" CellStyle="width: 50px" />
+                    <PropertyColumn Property="x => x.MMR" CellStyle="width: 50px" />
+                    <PropertyColumn Property="x => x.MatchesTotal" Title="Матчи" CellStyle="width: 50px" />
+                    <PropertyColumn Property="x => x.Winrate" Title="Винрейт" CellStyle="width: 50px" />
+                    <TemplateColumn CellClass="d-flex justify-end">
+                        <CellTemplate>
+                            @if (context.Item.IsOnline)
+                            {
+                                try
+                                {
+                                    @if (kTVCSSHub.SearchUsers.Where(x => x.Value.Id == context.Item.Id).Any())
+                                    {
+                                        <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">В поиске</MudButton>
+                                    }
+                                    else
+                                    {
+                                        @if (kTVCSSHub.OnlineUsers.Where(x => x.Value.InLobbyWithPlayerID != 0 && x.Value.Id == context.Item.Id).Any())
+                                        {
+                                            @if (kTVCSSHub.OnlineUsers.Where(x => x.Value.InLobbyWithPlayerID == Id && x.Value.Id == context.Item.Id).Any())
+                                            {
+                                                <MudButton OnClick=@(() => { hubConnection.InvokeAsync("KickPlayerFromLobby", context.Item.Id); StateHasChanged(); }) Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">Исключить</MudButton>
+                                            }
+                                            else
+                                            {
+                                                @if (kTVCSSHub.OnlineUsers.Where(x => x.Value.Id == Id).FirstOrDefault().Value.InLobbyWithPlayerID == context.Item.Id)
+                                                {
+                                                    <MudButton OnClick=@(() => { hubConnection.InvokeAsync("LeaveFromLobby", me); StateHasChanged(); }) Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">Покинуть лобби</MudButton>
+                                                }
+                                                else
+                                                {
+                                                    <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Warning">Игрок с кем-то в лобби</MudButton>
+                                                }
+                                            }
+                                        }
+                                        else
+                                        {
+                                            <MudButton OnClick=@(() => { hubConnection.InvokeAsync("SendRequestToJoinLobby", context.Item.Id, me); StateHasChanged(); }) Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Primary">Пригласить</MudButton>
+                                        }
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">@ex.Message</MudButton>
+                                }
+                            }
+                            else
+                            {
+                                <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Surface">Не в сети</MudButton>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        }
+        else
+        {
+            <MudDataGrid Items="@friends" FilterCaseSensitivity=DataGridFilterCaseSensitivity.Ignore Hover="true" Virtualize="true" Height="83svh" FilterMode=DataGridFilterMode.ColumnFilterMenu Filterable="false" SortMode="@SortMode.None" Groupable="false">
+                <Columns>
+                    <TemplateColumn Title="" CellStyle="" Filterable="false">
+                        <CellTemplate>
+                            <div style="display: flex;width: 100%;">
+                                <img style='margin-right: 10px;display: flex;justify-content: center;cursor: pointer; background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 25px; height: 25px;' src='@context.Item.PhotoUrl' />
+                                <img style="margin-right: 10px;display: flex;justify-content: center;width: 28px;" src="@context.Item.RankName" />
+                                <MudLink Style="text-wrap: nowrap;" Color="Color.Inherit" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                            </div>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="@requestsCaption">
+        @foreach (var item in requests)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudCard>
+                        <MudCardContent>
+                            <MudLink Color=Color.Default Href="@item.Link" Typo="Typo.h4">@item.Name</MudLink>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Disabled=@item.Status OnClick="() => { repo.AcceptFriendRequest(Id, item.Id); item.Status = true; }" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Text" Color="Color.Primary">Добавить</MudButton>
+                            <MudButton Disabled=@item.Status OnClick="() => { repo.RemoveFriendRequest(Id, item.Id); item.Status = true; }" StartIcon="@Icons.Material.Filled.RemoveCircle" Variant="Variant.Text" Color="Color.Error">Отклонить</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudTabPanel>
+    <MudTabPanel Text="@outgoingsCaption">
+        @foreach (var item in outgoings)
+        {
+            <MudGrid>
+                <MudItem xs="12">
+                    <MudCard>
+                        <MudCardContent>
+                            <MudLink Class="text-wrap" Color=Color.Default Href="@item.Link" Typo="Typo.h4">@item.Name</MudLink>
+                        </MudCardContent>
+                        <MudCardActions>
+                            <MudButton Disabled=@item.Status OnClick="() => { repo.RemoveFriendRequest(item.Id, Id); item.Status = true; }" StartIcon="@Icons.Material.Filled.RemoveCircle" Variant="Variant.Text" Color="Color.Error">Отменить заявку</MudButton>
+                        </MudCardActions>
+                    </MudCard>
+                </MudItem>
+            </MudGrid>
+        }
+    </MudTabPanel>
+</MudTabs>
+
+@code {
+    private List<TotalPlayer> friends { get; set; } = new List<TotalPlayer>();
+    private List<FriendRequest> requests { get; set; } = new List<FriendRequest>();
+    private List<FriendRequest> outgoings { get; set; } = new List<FriendRequest>();
+    private string friendsCaption = "Мои друзья";
+    private string requestsCaption = "Входящие заявки в друзья";
+    private string outgoingsCaption = "Исходящие заявки в друзья";
+    private int Id { get; set; }
+    private User? me = new();
+    private string displayBar = "block";
+    private string connectionID = null;
+    private bool isMobile = false;
+
+    private string GetUserLink(int id)
+    {
+        return $"/player/{id}";
+    }
+
+    private void OnLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        if (connectionID != null)
+        {
+            kTVCSSHub.FriendsPageUsers.TryRemove(connectionID, out int val);
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            isMobile = true;
+        }
+
+        connectionID = hubConnection.State == HubConnectionState.Connected ? hubConnection.ConnectionId : null;
+
+        if (connectionID != null)
+        {
+            kTVCSSHub.FriendsPageUsers.TryAdd(connectionID, 0);
+            NavigationManager.LocationChanged += OnLocationChanged;
+        }
+        else
+        {
+            SweetAlertOptions options = new();
+            options.TimerProgressBar = true;
+            options.Timer = 7000;
+            options.Title = "Подключение к сети kTVCSS";
+            options.Text = "Вы либо еще не подключены к сети проекта, либо только подключаетесь, поэтому функционал данной страницы пока не доступен полностью. После подключения к сети, переключите эту страницу, чтобы все было, как надо!";
+            options.Icon = SweetAlertIcon.Warning;
+            Swal.FireAsync(options);
+        }
+
+        hubConnection.On("RefreshFriends", () =>
+            {
+                displayBar = "block";
+                friends = new();
+                friends.AddRange(repo.GetFriends(Id));
+                requests = new();
+                requests.AddRange(repo.GetFriendRequests(Id));
+                outgoings = new();
+                outgoings.AddRange(repo.GetFriendRequestsOutgoing(Id));
+
+                displayBar = "none";
+
+                InvokeAsync(StateHasChanged);
+            });
+
+        me = await AuthProvider.GetUserFromDataBase();
+
+        Id = AuthProvider.CurrentUser.Id;
+
+        friends.AddRange(repo.GetFriends(Id));
+
+        requests.AddRange(repo.GetFriendRequests(Id));
+
+        outgoings.AddRange(repo.GetFriendRequestsOutgoing(Id));
+
+        foreach (var item in requests)
+        {
+            item.Link = $"/player/{item.Id}";
+        }
+
+        foreach (var item in outgoings)
+        {
+            item.Link = $"/player/{item.Id}";
+        }
+
+        if (friends.Count > 0)
+        {
+            friendsCaption = $"Мои друзья ({friends.Count})";
+        }
+
+        if (requests.Count > 0)
+        {
+            requestsCaption = $"Входящие заявки в друзья ({requests.Count})";
+        }
+
+        if (outgoings.Count > 0)
+        {
+            outgoingsCaption = $"Исходящие заявки в друзья ({outgoings.Count})";
+        }
+
+        displayBar = "none";
+    }
+}

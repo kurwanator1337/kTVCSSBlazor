@@ -1,0 +1,26 @@
+﻿<MudDialog @bind-IsVisible="visible">
+    <TitleContent>
+        <MudText Typo="Typo.h6">
+            <MudIcon Icon="@Icons.Material.Filled.Edit" Class="mr-3" /> Edit rating
+        </MudText>
+    </TitleContent>
+    <DialogContent>
+        <p>How awesome are inline dialogs?</p>
+        
+    </DialogContent>
+    <DialogActions>
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" OnClick="Submit" Class="px-10">Отправить</MudButton>
+    </DialogActions>
+</MudDialog>
+
+<style>
+    .my-custom-class {
+        backdrop-filter: blur(10px);
+    }
+</style>
+
+@code {
+    private bool visible;
+    private void OpenDialog() => visible = true;
+    void Submit() => visible = false;
+}

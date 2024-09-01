@@ -1,0 +1,342 @@
+﻿@page "/mix/{Guid}"
+@using System.Text
+@using System.Text.RegularExpressions
+@using System.Globalization
+@using CurrieTechnologies.Razor.SweetAlert2
+@using System.Timers
+@using kTVCSSBlazor.Components.Icons
+@using kTVCSSBlazor.Db.Models.Matches
+@using kTVCSSBlazor.Db.Models.Players
+@using kTVCSSBlazor.Hubs
+@using kTVCSSBlazor.Hubs.Models
+@inject IJSRuntime JS
+@inject Db.Interfaces.IPlayers repo
+@inject IHttpContextAccessor httpContextAccessor
+@inject IHttpClientFactory ClientFactory
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject NavigationManager NavigationManager
+@inject SweetAlertService Swal
+
+<kTVCSSBlazor.Components.Layout.Bar display="block" />
+<PageTitle>kTVCSS @@ Микс @Guid</PageTitle>
+
+<MudScrollToTop>
+    <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowCircleUp" />
+</MudScrollToTop>
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudPaper Style=@headerStyle>
+            <div style="display: flex; flex-direction: column;height: 100%;align-items: center;justify-content: space-evenly;">
+                <div class="mud-typography-h4" style="color: #00b507;font-weight: 600;width:100%;text-align:center">Ожидание (осталось: @timeLeftString)</div>
+                <div style="display: flex;flex-direction:row;width: 100%;align-items: center;justify-content: space-between;">
+                    <div style="font-weight: 600;text-align: center;width: 45%;">
+                        <img style="background-repeat: no-repeat;background-position: 50%;border-radius: 50%;width: 80px; height:80px" src="/images/logo_ktv.png" width="60" height="60">
+                        <div class="mud-typography-h5">Team @teamA</div>
+                    </div>
+                    <div class="mud-typography-h4" style="font-weight: 600;display:flex;text-align:center;"><div style='color: #ffffff;'>0</div><div style="margin-left: 5px;margin-right: 5px;">  -  </div><div style='color: #ffffff;'>0</div></div>
+                    <div style="font-weight: 600;text-align: center;width: 45%;">
+                        <img style="background-repeat: no-repeat;background-position: 50%;border-radius: 50%;width: 80px; height:80px" src="/images/logo_ktv.png" width="60" height="60">
+                        <div class="mud-typography-h5">Team @teamB</div>
+                    </div>
+                </div>
+                <div style="display: flex;flex-direction: column;justify-content: center !important;align-items: center;">
+                    <MudText Color="Color.Warning" Typo="Typo.h5">Игровой сервер №@Mix.ServerID: @Mix.ServerAddress</MudText>
+                    <MudLink Underline="Underline.Hover" Href="/maps" Color="Color.Info">Скачать карты</MudLink>
+                </div>
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12">
+        @if (!isMobile)
+        {
+            <MudPaper Style="min-height: 22vh">
+                <div style="min-height: 48px;display: flex;flex-direction: column;justify-content: space-evenly;align-items: center;margin-bottom: 1%;">
+                    <div style="display: flex;color: white; font-size: 24px;">Составы команд</div>
+                    <MudProgressLinear Value="@ProgressValue" Max="a >= b ? a : b" Color="Color.Primary" />
+                </div>
+
+                <div style="min-height: 160px;display: flex;justify-content: center;align-items: center;">
+                    <div style="display: flex; flex-wrap: wrap;width: 45%;justify-content: center;">
+                        @foreach (var player in Mix.MixPlayers.Where(x => x.TeamID == "0"))
+                        {
+                            <div style="display: flex;flex-direction: column;align-items: center;color: white;margin-right: 3%;">
+                                <div>
+                                    <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 74px; height: 74px; min-width: 74px;margin-bottom: 3%;" src="@player.AvatarUrl">
+                                </div>
+                                <div>
+                                    <a href="/player/@Convert.ToInt32(player.Id)">@player.Username</a>
+                                </div>
+                                <div style="color: #b5b5ab;">
+                                    @player.CurrentMMR MMR
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="font-size: 2.5em; color: white; text-transform: uppercase;text-align: center;width: 10%;">vs</div>
+
+                    <div style="display: flex;  flex-wrap: wrap;width: 45%;justify-content: center;">
+                        @foreach (var player in Mix.MixPlayers.Where(x => x.TeamID == "1"))
+                        {
+                            <div style="display: flex;flex-direction: column;align-items: center;color: white;margin-right: 3%;">
+                                <div>
+                                    <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 74px; height: 74px; min-width: 74px;margin-bottom: 3%;" src="@player.AvatarUrl">
+                                </div>
+                                <div>
+                                    <a href="/player/@Convert.ToInt32(player.Id)">@player.Username</a>
+                                </div>
+                                <div style="color: #b5b5ab;">
+                                    @player.CurrentMMR MMR
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </MudPaper>
+        }
+        else
+        {
+            <MudPaper>
+                <div style="height: 48px;display: flex;justify-content: space-evenly;align-items: center;border-bottom: 1px solid;">
+                    <div style="display: flex;color: white; font-size: 24px;">Составы команд</div>
+                </div>
+
+                <div style="display: flex;flex-direction: column;justify-content: center;align-items: center;">
+                    <div style="display: flex; flex-direction: column;width: 100%;margin-top: 2%;justify-content: center;">
+                        @foreach (var player in Mix.MixPlayers.Where(x => x.TeamID == "0"))
+                        {
+                            <div style="display: flex;flex-direction: column;align-items: center;color: white;margin-bottom: 3%;">
+                                <div>
+                                    <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 74px; height: 74px; min-width: 74px;margin-bottom: 3%;" src="@player.AvatarUrl">
+                                </div>
+                                <div>
+                                    <a href="/player/@Convert.ToInt32(player.Id)">@player.Username</a>
+                                </div>
+                                <div style="color: #b5b5ab;">
+                                    @player.CurrentMMR MMR
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="font-size: 2.5em; color: white; text-transform: uppercase;text-align: center;width: 100%;margin-bottom: 3%;">vs</div>
+
+                    <div style="display: flex; flex-direction: column;width: 100%;justify-content: center;">
+                        @foreach (var player in Mix.MixPlayers.Where(x => x.TeamID == "1"))
+                        {
+                            <div style="display: flex;flex-direction: column;align-items: center;color: white;margin-bottom: 3%;">
+                                <div>
+                                    <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 74px; height: 74px; min-width: 74px;margin-bottom: 3%;" src="@player.AvatarUrl">
+                                </div>
+                                <div>
+                                    <a href="/player/@Convert.ToInt32(player.Id)">@player.Username</a>
+                                </div>
+                                <div style="color: #b5b5ab;">
+                                    @player.CurrentMMR MMR
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </MudPaper>
+        }
+    </MudItem>
+</MudGrid>
+
+<MudStack Style="margin-top: 1%">
+    <MudAlert Severity="Severity.Success">Микс комната успешно была создана.</MudAlert>
+    <MudAlert Severity="Severity.Info">Вам необходимо зайти на игровой сервер, указанный в шапке страницы оранжевым цветом. После захода на сервер, обязательно зайдите за любую команду (не сидите в спеках). Матч будет запущен автоматически.</MudAlert>
+    <MudAlert Severity="Severity.Warning">@tsString</MudAlert>
+</MudStack>
+
+<style>
+    .player-avatar-and-name {
+        height: 100%;
+        width: 50%;
+        margin: 0 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .player-avatar-picture {
+        box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;
+        background-repeat: no-repeat;
+        background-position: 50%;
+        border-radius: 50%;
+        width: 150px;
+        height: 150px;
+        margin-bottom: 3%;
+    }
+
+    .player-stat-block {
+        height: 90%;
+        margin: auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+        align-items: center;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string Guid { get; set; }
+
+    private string tsString = "Для комфортного взаимодействия с командой зайдите в teamspeak проекта (необязательно)";
+
+    private Timer countdownTimer;
+    private int timeLeft = 300; // Обратный отсчет в секундах (1 минута)
+    private string timeLeftString;
+
+    private bool isMobile { get; set; }
+    private string headerStyle = string.Empty;
+    HttpClient httpClient = null!;
+    private bool isVip = false;
+
+    Mix Mix = new Mix();
+
+    private string moreColor = "#ffffff";
+    private string lessColor = "#ffffff";
+
+    private string teamA = "Alpha";
+    private string teamB = "Bravo";
+
+    private double a = 0;
+    private double b = 0;
+    
+    private int Difference = 0;
+    private double ProgressValue = 0;
+    private double ProgressValuePercentage = 0;
+
+    protected override Task OnInitializedAsync()
+    {
+        JS.InvokeVoidAsync("showLoadBar");
+
+        if (!kTVCSSHub.Mixes.Where(x => x.Guid.ToString() == Guid).Any())
+        {
+            return base.OnInitializedAsync();
+        }
+
+        if (kTVCSSHub.Mixes.Count == 1)
+        {
+            teamA = "Alpha";
+            teamB = "Bravo";
+        }
+        else if (kTVCSSHub.Mixes.Count == 2)
+        {
+            teamA = "Charlie";
+            teamB = "Delta";
+        }
+        else if (kTVCSSHub.Mixes.Count == 3)
+        {
+            teamA = "Echo";
+            teamB = "Foxtrot";
+        }
+        else if (kTVCSSHub.Mixes.Count == 4)
+        {
+            teamA = "Golf";
+            teamB = "Hotel";
+        }
+        
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            isMobile = true;
+        }
+
+        httpClient = ClientFactory.CreateClient();
+        Mix = kTVCSSHub.Mixes.FirstOrDefault(x => x.Guid.ToString() == Guid);
+
+        try
+        {
+            int acount = Mix.MixPlayers.Where(x => x.TeamID == "0" && x.CurrentMMR != 0).Count();
+            int bcount = Mix.MixPlayers.Where(x => x.TeamID == "1" && x.CurrentMMR != 0).Count();
+
+            a = Math.Round((double)(Mix.MixPlayers.Where(x => x.TeamID == "0").Sum(x => x.CurrentMMR) / acount));
+            b = Math.Round((double)(Mix.MixPlayers.Where(x => x.TeamID == "1").Sum(x => x.CurrentMMR) / bcount));
+
+            Difference = (int)Math.Abs(a - b);
+            ProgressValue = a >= b ? b : a;
+            ProgressValuePercentage = a >= b ? (ProgressValue / a) * 100 : (ProgressValue / b) * 100;
+            ProgressValuePercentage /= 2;
+            ProgressValue /= 2;
+        }
+        catch (Exception)
+        {
+            // zero
+        }
+        
+        timeLeft = (int)Mix.DtStart.Subtract(DateTime.Now).TotalSeconds;
+        
+        timeLeftString = FormatTime(timeLeft);
+        countdownTimer = new Timer(1000);
+        countdownTimer.Elapsed += UpdateCountdown;
+        countdownTimer.Start();
+
+        if (Mix is not null)
+        {
+            if (Mix.MixPlayers.Count(x => x.CurrentMMR >= 1701) == 10)
+            {
+                tsString = "Вам необходимо зайти в TeamSpeak для взаимодействия с командой (обязательно)";
+            }
+        }
+
+        headerStyle = isMobile ? "background-image: url(/images/mapsbackgrs/" + Mix.MapName + ".jpg);height: 300px;background-size: 200% auto;background-color: rgb(0 0 0 / 65%); background-position: center; background-blend-mode: multiply;" :
+        "background-image: url(/images/mapsbackgrs/" + Mix.MapName + ".jpg);height: 250px;background-size: 100% auto;background-color: rgb(0 0 0 / 65%); background-position: center; background-blend-mode: multiply;";
+
+        return base.OnInitializedAsync();
+    }
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+            if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+            {
+                isMobile = true;
+            }
+
+            JS.InvokeVoidAsync("hideLoadBar");
+        }
+
+        return base.OnAfterRenderAsync(firstRender);
+    }
+
+    private void UpdateCountdown(object sender, ElapsedEventArgs e)
+    {
+        if (timeLeft > 0)
+        {
+            timeLeft--;
+            timeLeftString = FormatTime(timeLeft);
+            InvokeAsync(StateHasChanged); // Обновление интерфейса
+        }
+        else
+        {
+            countdownTimer.Stop();
+            countdownTimer.Dispose();
+            
+            // move to match
+        }
+    }
+
+    private string FormatTime(int totalSeconds)
+    {
+        int minutes = totalSeconds / 60;
+        int seconds = totalSeconds % 60;
+        return $"{minutes:D2}:{seconds:D2}";
+    }
+
+    public void Dispose()
+    {
+        if (countdownTimer != null)
+        {
+            countdownTimer.Dispose();
+        }
+    }
+}

@@ -1,0 +1,67 @@
+﻿@using CurrieTechnologies.Razor.SweetAlert2
+@using kTVCSSBlazor.Db.Models.Players
+@inject NavigationManager NavigationManager
+@inject Db.Interfaces.ITeams teams
+@inject SweetAlertService Swal
+
+<MudGrid Class="d-flex-column align-center justify-center" Justify="Justify.Center">
+    <MudItem sm="4" xs="12">
+        <MudPaper Style="width: 100%;margin: auto" Class="py-8">
+            <MudAlert Style="margin-bottom: 2%;margin-left: 2%;margin-right: 2%;" Severity="Severity.Info">Вы были приглашены в команду @TeamName</MudAlert>
+            <div style="display: flex; width: 100%;margin: auto;justify-content:center;">
+                <MudButton Style="margin-right: 2%;" OnClick="Accept" Variant="Variant.Filled" Color="Color.Success">Принять</MudButton>
+                <MudButton OnClick="Decline" Variant="Variant.Filled" Color="Color.Error">Отклонить</MudButton>
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+
+@code {
+    [Parameter] public string TeamName { get; set; }
+    [Parameter] public PlayerInfo player { get; set; }
+
+    async Task ShowAlert(string caption, string text, int time, SweetAlertIcon icon, Func<Task> customCallback)
+    {
+        var options = new SweetAlertOptions
+            {
+                TimerProgressBar = true,
+                Timer = time,
+                Title = caption,
+                Text = text,
+                Icon = icon,
+                WillClose = new SweetAlertCallback(async () =>
+                {
+                    await customCallback();
+                })
+            };
+
+        await Swal.FireAsync(options);
+    }
+
+    private async Task Accept()
+    {
+        var a = teams.AcceptInvite(player.MainInfo.SteamID);
+        if (a == 0)
+        {
+            await ShowAlert("Ошибка", "Состав команды уже полный, Вы не можете вступить в команду!", 3000, SweetAlertIcon.Error, null);
+            return;
+        }
+        if (a == 1)
+        {
+            await ShowAlert("Успех", "Вы вступили в команду!", 3000, SweetAlertIcon.Success, async () =>
+            {
+                NavigationManager.NavigateTo("/myprofile", true);
+            });
+        }
+    }
+
+    private async Task Decline()
+    {
+        teams.DeclineInvite(player.MainInfo.SteamID);
+        await ShowAlert("Успех", "Вы отклонили заявку!", 3000, SweetAlertIcon.Info, async () =>
+            {
+                NavigationManager.NavigateTo("/myprofile", true);
+            });
+    }
+}

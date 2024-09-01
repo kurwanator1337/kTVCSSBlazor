@@ -1,0 +1,443 @@
+﻿@page "/admin"
+@using System.Text.RegularExpressions
+@using CurrieTechnologies.Razor.SweetAlert2
+@using Dapper
+@using Renci.SshNet
+@using System.Data.SqlClient
+@using System.Reflection
+@using System.Data
+@using kTVCSSBlazor.Hubs
+@inject Db.Interfaces.IPlayers repo
+@inject IConfiguration configuration
+@inject IJSRuntime JS
+@inject NavigationManager nav
+@inject SweetAlertService Swal
+@inject Db.Interfaces.IAdmins admin
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject ILogger<Index> logger
+
+<PageTitle>kTVCSS @@ Админ-панель</PageTitle>
+
+<kTVCSSBlazor.Components.Layout.Bar />
+
+@if (isAdmin)
+{
+    <MudStack Row=true Justify="Justify.Center">
+        <MudButton Target="_blank" Href="https://ktvcss.netmeta.tech/enter.php" Variant="Variant.Outlined">Управление игровыми серверами</MudButton>
+        <MudButton Target="_blank" Href="https://ktvcss.ru:9090/" Variant="Variant.Outlined">Cockpit</MudButton>
+        <MudButton Target="_blank" Href="https://nlhst.com/" Variant="Variant.Outlined">Тимспик</MudButton>
+        <MudButton OnClick="@(() => { admin.RestartAllNodes(AuthProvider.CurrentUser.Username); })" Variant="Variant.Outlined">Перезапустить все ноды</MudButton>
+    </MudStack>
+
+    <MudSwitch @bind-Value="@MixesEnabled" Label="Миксы" Color="Color.Info" />
+    <MudTextField @bind-Value="reason" Label="Причина остановки миксов" Variant="Variant.Text"></MudTextField>
+
+    <MudGrid Style="margin-top: 1%">
+        <MudItem xs="12" md="4">
+            <MudDataGrid Items="@nodes" Style="width: 100%;" Filterable="false" SortMode="@SortMode.None" Groupable="false">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Статус сервисов .NET</MudText>
+                    <MudSpacer />
+                </ToolBarContent>
+                <Columns>
+                    <PropertyColumn CellStyle="justify-content: left;" Title="Сервис" Property="x => x.Key" />
+                    <TemplateColumn CellStyle="justify-content: center;" CellClass="d-flex">
+                        <CellTemplate>
+                            <div>
+                                @if (context.Item.Value)
+                                {
+                                    <MudButton FullWidth="true" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Success">Активно</MudButton>
+                                }
+                                else
+                                {
+                                    <MudButton FullWidth="true" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Error">Мертво</MudButton>
+                                }
+                            </div>
+                            <div style="margin-left: 4%;"><MudButton FullWidth="true" OnClick="@(() => { ExecuteNode(context.Item.Key, "restart"); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Warning">Перезагрузить</MudButton></div>
+                            @if (context.Item.Value)
+                            {
+                                <div style="margin-left: 4%;"><MudButton FullWidth="true" OnClick="@(() => { ExecuteNode(context.Item.Key, "stop"); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Secondary">Остановить</MudButton></div>
+                            }
+                            else
+                            {
+                                <div style="margin-left: 4%;"><MudButton FullWidth="true" OnClick="@(() => { ExecuteNode(context.Item.Key, "start"); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Info">Запустить</MudButton></div>
+                            }
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </MudItem>
+
+        <MudItem xs="12" md="8">
+            <MudDataGrid Items="@gameservers" Style="width: 100%;" Filterable="false" SortMode="@SortMode.None" Groupable="false">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Игровые серверы</MudText>
+                    <MudSpacer />
+                </ToolBarContent>
+                <Columns>
+                    <PropertyColumn CellStyle="justify-content: left;" Title="Сервер" Property="x => x.Key" />
+                    <TemplateColumn CellStyle="justify-content: center;" CellClass="d-flex">
+                        <CellTemplate>
+                            <div style="margin-left: 4%;"><MudButton OnClick="@(() => { ExecuteGameServer(context.Item.Key, "restart"); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Warning">Перезагрузить</MudButton></div>
+                            <div style="margin-left: 4%;"><MudButton OnClick="@(() => { ExecuteGameServer(context.Item.Key, "stop"); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Secondary">Остановить</MudButton></div>
+                            <div style="margin-left: 4%;"><MudButton OnClick="@(() => { ExecuteGameServer(context.Item.Key, "start"); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Info">Запустить</MudButton></div>
+                            <div style="margin-left: 4%;"><MudButton OnClick="@(() => { admin.SetServerMatch(int.Parse(context.Item.Key.LastOrDefault().ToString()) - 1, AuthProvider.CurrentUser.Username); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Tertiary">Уст. матч</MudButton></div>
+                            <div style="margin-left: 4%;"><MudButton OnClick="@(() => { admin.SetServerMix(int.Parse(context.Item.Key.LastOrDefault().ToString()) - 1, AuthProvider.CurrentUser.Username); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Tertiary">Уст. микс</MudButton></div>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+            </MudDataGrid>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid>
+        <MudItem xs="12" md="6">
+            <MudPaper Height="25svh" Class="pa-4">
+                <MudTextField T="string" Label="SQL CLIENT" Variant="Variant.Outlined" Text="@sqlQuery" Lines="4" />
+                <MudFab OnClick="ExecuteSQL" Style="margin-top: 1%" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Start" />
+            </MudPaper>
+        </MudItem>
+        <MudItem xs="12" md="6">
+            @if (!isRead)
+            {
+                <MudPaper Height="25svh" Class="pa-4 mud-height-full">
+                    <MudText Typo="Typo.subtitle2">@sqlExec</MudText>
+                </MudPaper>
+            }
+            else
+            {
+                <MudPaper Height="25svh" Class="pa-4 mud-height-full">
+                    <MudText Typo="Typo.subtitle2">Чтение не поддерживается (возвращено @sqlRead.Count строк)</MudText>
+                </MudPaper>
+            }
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="12">
+            <MudDataGrid Items="@kTVCSSHub.Mixes" Style="width: 100%;" Filterable="false" SortMode="@SortMode.None" Groupable="false">
+                <ToolBarContent>
+                    <MudText Typo="Typo.h6">Миксы в оперативной памяти</MudText>
+                    <MudSpacer />
+                </ToolBarContent>
+                <Columns>
+                    <HierarchyColumn />
+                    <PropertyColumn CellStyle="justify-content: left;" Title="GUID" Property="x => x.Guid" />
+                    <PropertyColumn CellStyle="justify-content: left;" Title="Карта" Property="x => x.MapName" />
+                    <PropertyColumn CellStyle="justify-content: left;" Title="Сервер" Property="x => x.ServerAddress" />
+                    <TemplateColumn CellStyle="justify-content: center;" CellClass="d-flex">
+                        <CellTemplate>
+                            <div style="margin-left: 4%;">
+                                <MudButton OnClick="@(() =>
+                                {
+                                    var mix = kTVCSSHub.Mixes.Where(x => x.Guid.ToString().ToLower() == context.Item.Guid.ToString().ToLower()).FirstOrDefault();
+
+                                    if (mix is not null)
+                                    {
+                                        try
+                                        {
+                                            using (SqlConnection sql = new SqlConnection(configuration.GetConnectionString("db")))
+                                            {
+                                                sql.Open();
+
+                                                DynamicParameters dynamicParameters = new DynamicParameters();
+                                                dynamicParameters.Add("SERVERID", mix.ServerID);
+
+                                                sql.Execute("StopMatch", dynamicParameters, commandType: CommandType.StoredProcedure);
+                                            }
+                                        }
+                                        catch (Exception)
+                                        {
+                                            // auth
+                                        }
+                                    }
+
+                                    kTVCSSHub.Mixes.RemoveAll(x => x.Guid.ToString().ToLower() == context.Item.Guid.ToString().ToLower());
+                                })"
+                                           Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Error">Удалить</MudButton>
+                            </div>
+                        </CellTemplate>
+                    </TemplateColumn>
+                </Columns>
+                <ChildRowContent>
+                    <MudDataGrid Items="@context.Item.MixPlayers">
+                        <Columns>
+                            <PropertyColumn Property="x => x.Username" Title="Ник" />
+                            <PropertyColumn Property="x => x.SteamId" Title="STEAMID" />
+                        </Columns>
+                    </MudDataGrid>
+                </ChildRowContent>
+            </MudDataGrid>
+        </MudItem>
+    </MudGrid>
+
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="12">
+            <MudTextField spellcheck="false" T="string" Label="Логи сайта" Variant="Variant.Outlined" Text="@logs" Lines="20" />
+        </MudItem>
+    </MudGrid>
+}
+
+<style>
+    .mud-table-cell {
+        display: table-cell;
+        padding: 8px;
+        font-size: .875rem;
+        text-align: start;
+        font-weight: 400;
+        line-height: 1.43;
+        border-bottom: 1px solid var(--mud-palette-table-lines);
+        letter-spacing: .01071em;
+        vertical-align: inherit;
+    }
+</style>
+
+@code {
+    private Dictionary<string, bool> nodes = new Dictionary<string, bool>();
+    private Dictionary<string, string> gameservers = new Dictionary<string, string>();
+    private string sqlQuery = "SELECT TOP(100) * FROM Players WITH (NOLOCK)";
+    private string sqlExec = "";
+    private List<dynamic> sqlRead = new List<dynamic>();
+    private List<string> columns = new List<string>();
+    private bool isRead = false;
+    private bool isAdmin = false;
+    private string logs;
+
+    private string reason = "";
+    private bool mx;
+    public bool MixesEnabled
+    {
+        get { return mx; }
+        set
+        {
+            using (SqlConnection sql = new SqlConnection(configuration.GetConnectionString("db")))
+            {
+                sql.Open();
+
+                if (value)
+                {
+                    sql.Execute("UPDATE Settings SET ParamValue = 1 WHERE ParamName = 'MixesEnabled'");
+                }
+                else
+                {
+                    sql.Execute($"UPDATE Settings SET ParamValue = 0, ParamDescription = '{reason}' WHERE ParamName = 'MixesEnabled'");
+                }
+
+                mx = value;
+            }
+        }
+    }
+
+    private object GetPropertyValue(object obj, string propertyName)
+    {
+        var property = obj.GetType().GetProperty(propertyName);
+        if (property != null)
+        {
+            return property.GetValue(obj);
+        }
+        return null;
+    }
+
+    private void ExecuteSQL()
+    {
+        columns = new();
+
+        using (SqlConnection sql = new SqlConnection(configuration.GetConnectionString("db")))
+        {
+            sql.Open();
+
+            try
+            {
+                if (sqlQuery.ToLower().StartsWith("select"))
+                {
+                    sqlRead = sql.Query(sqlQuery).ToList();
+                    var result = sqlRead.FirstOrDefault();
+                    //dynamic result = sql.QueryFirstOrDefault(sqlQuery);
+                    foreach (var property in result)
+                    {
+                        columns.Add(property.Key);
+                    }
+
+                    isRead = true;
+                }
+                else
+                {
+                    isRead = false;
+                    sqlExec = sql.Execute(sqlQuery) + " затрунуто строк";
+                }
+            }
+            catch (Exception ex)
+            {
+                sqlExec = ex.Message;
+            }
+        }
+    }
+
+    private string RunSshCommand(string serviceName)
+    {
+        using (var client = new SshClient(configuration["ssh_host"], 1337, configuration["ssh_user"], configuration["ssh_password"]))
+        {
+            client.Connect();
+            var command = client.CreateCommand($"systemctl status {serviceName}");
+            var result = command.Execute();
+            client.Disconnect();
+
+            return result;
+        }
+    }
+
+    private async Task ExecuteNode(string serviceName, string execType)
+    {
+        JS.InvokeVoidAsync("showLoadBar");
+
+        using (var client = new SshClient(configuration["ssh_host"], 1337, configuration["ssh_user"], configuration["ssh_password"]))
+        {
+            client.Connect();
+            var command = client.CreateCommand($"systemctl {execType} {serviceName}");
+            var result = command.Execute();
+            client.Disconnect();
+        }
+
+        string output = RunSshCommand(serviceName);
+        nodes[serviceName] = ParseServiceStatus(output);
+
+        StateHasChanged();
+
+        await Task.Delay(2000);
+
+        output = RunSshCommand(serviceName);
+        nodes[serviceName] = ParseServiceStatus(output);
+
+        SweetAlertOptions options = new();
+        options.TimerProgressBar = true;
+        options.Timer = 5000;
+        options.Title = "kTVCSS @ Admin";
+        options.Text = output;
+        options.Icon = SweetAlertIcon.Info;
+        Swal.FireAsync(options);
+
+        logger.LogInformation($"{AuthProvider.CurrentUser.Username} выполнил {execType} к сервису {serviceName}");
+
+        JS.InvokeVoidAsync("hideLoadBar");
+    }
+
+    private async Task ExecuteGameServer(string server, string action)
+    {
+        JS.InvokeVoidAsync("showLoadBar");
+
+        using (var client = new SshClient(configuration["ssh_host"], 1337, configuration["ssh_user"], configuration["ssh_password"]))
+        {
+            client.Connect();
+            var command = client.CreateCommand(gameservers[server].Replace("{ACTION}", action));
+            var result = command.Execute();
+            client.Disconnect();
+            SweetAlertOptions options = new();
+            options.TimerProgressBar = true;
+            options.Timer = 5000;
+            options.Title = "kTVCSS @ Admin";
+            options.Text = result;
+            options.Icon = SweetAlertIcon.Info;
+            Swal.FireAsync(options);
+        }
+
+        logger.LogInformation($"{AuthProvider.CurrentUser.Username} выполнил {action} к серверу {server}");
+
+        JS.InvokeVoidAsync("hideLoadBar");
+    }
+
+
+    private bool ParseServiceStatus(string output)
+    {
+        var regex = new Regex(@"Active:\s+active \(running\)");
+        return regex.IsMatch(output);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        //admin.RestoreMMR();
+
+        string steam = AuthProvider.CurrentUser.SteamId;
+
+        logs = File.ReadAllText("logger.txt");
+
+        logger.LogWarning(AuthProvider.CurrentUser.Username + " зашел на страницу админ-панели");
+
+        if (await admin.IsAdmin(steam))
+        {
+            isAdmin = true;
+        }
+
+        using (SqlConnection sql = new SqlConnection(configuration.GetConnectionString("db")))
+        {
+            sql.Open();
+
+            var test = sql.QueryFirst<int>("SELECT ParamValue FROM Settings WHERE ParamName = 'MixesEnabled'");
+
+            if (test == 1)
+            {
+                MixesEnabled = true;
+            }
+            else
+            {
+                MixesEnabled = false;
+            }
+        }
+
+        JS.InvokeVoidAsync("showLoadBar");
+    }
+
+    private bool pageChanged { get; set; } = false;
+
+    protected override Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            nav.LocationChanged += OnLocationChanged;
+
+            nodes.Add("node-ktvcss1", false);
+            nodes.Add("node-ktvcss2", false);
+            nodes.Add("node-ktvcss3", false);
+            nodes.Add("node-ktvcss4", false);
+            nodes.Add("node-ktvcss5", false);
+            nodes.Add("node-ktvcss6", false);
+            nodes.Add("node-ktvcss-auth", false);
+
+            gameservers.Add("kTVCSS #1", "sh /srv/gameservers/cssold/{ACTION}.sh 1");
+            gameservers.Add("kTVCSS #2", "sh /srv/gameservers/cssold/{ACTION}.sh 2");
+            gameservers.Add("kTVCSS #3", "sh /srv/gameservers/cssold/{ACTION}.sh 3");
+            gameservers.Add("kTVCSS #4", "sh /srv/gameservers/cssold/{ACTION}.sh 4");
+            gameservers.Add("kTVCSS #5", "sh /srv/gameservers/cssold/{ACTION}.sh 5");
+            gameservers.Add("kTVCSS #6", "sh /srv/gameservers/cssold/{ACTION}.sh 6");
+            gameservers.Add("kTVCSS RETAKE", "sh /srv/gameservers/cssold/{ACTION}.sh 7");
+            gameservers.Add("kTVCSS DM", "sh /srv/gameservers/cssold/{ACTION}.sh 8");
+
+            Updater();
+        }
+
+        JS.InvokeVoidAsync("hideLoadBar");
+
+        return base.OnAfterRenderAsync(firstRender);
+    }
+
+    private async Task Updater()
+    {
+        while (!pageChanged)
+        {
+            foreach (var node in nodes)
+            {
+                string output = RunSshCommand(node.Key);
+
+                nodes[node.Key] = ParseServiceStatus(output);
+
+                StateHasChanged();
+            }
+
+            await Task.Delay(30000);
+        }
+    }
+
+    private void OnLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        pageChanged = true;
+    }
+}

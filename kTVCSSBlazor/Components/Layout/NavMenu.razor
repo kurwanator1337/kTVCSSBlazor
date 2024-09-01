@@ -1,0 +1,52 @@
+﻿@inject Db.Interfaces.IIM repo
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+
+<MudNavMenu>
+    <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Главная</MudNavLink>
+    <MudNavLink Href="/chat" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Chat">Сообщения @UnreadedCount</MudNavLink>
+    <MudNavLink Href="/about" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Info">О проекте</MudNavLink>
+    <MudNavLink Disabled=true Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.EmojiEvents">Боевые кубки</MudNavLink>
+    <MudNavGroup Icon="@Icons.Material.Filled.People" Title="Игроки" Expanded="false">
+        <MudNavLink IconColor=Color.Success Icon="@Icons.Material.Filled.PeopleOutline" Href="/players" Match="NavLinkMatch.All">Все игроки</MudNavLink>
+        @*  <MudNavLink IconColor=Color.Error Icon="@Icons.Material.Filled.PeopleOutline" Href="/players-t1" Match="NavLinkMatch.All">TIER-1 игроки</MudNavLink>
+        <MudNavLink IconColor=Color.Warning Icon="@Icons.Material.Filled.PeopleOutline" Href="/players-t2" Match="NavLinkMatch.All">TIER-2 игроки</MudNavLink> *@
+        <MudNavLink IconColor=Color.Success Icon="@Icons.Material.Filled.Lightbulb" Href="/onlineplayers" Match="NavLinkMatch.All">Онлайн игроки</MudNavLink>
+        <MudNavLink IconColor=Color.Info Icon="@Icons.Material.Filled.EmojiPeople" Href="/friends" Match="NavLinkMatch.All">Мои друзья</MudNavLink>
+        <MudNavLink IconColor=Color.Error Icon="@Icons.Material.Filled.Block" Href="/banslist" Match="NavLinkMatch.All">Банлист</MudNavLink>
+        <MudNavLink IconColor=Color.Warning Icon="@Icons.Material.Filled.PersonSearch" Href="/fft" Match="NavLinkMatch.All">FFT игроки</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Icon="@Icons.Material.Filled.VideogameAsset" Title="Матчи" Expanded="false">
+        <MudNavLink IconColor=Color.Success Icon="@Icons.Material.Filled.TableRows" Href="/matches" Match="NavLinkMatch.All">Все матчи</MudNavLink>
+        <MudNavLink IconColor=Color.Secondary Icon="@Icons.Material.Filled.Stars" Href="/mybestmatches" Match="NavLinkMatch.All">Мои лучшие матчи</MudNavLink>
+    </MudNavGroup>
+    <MudNavGroup Icon="@Icons.Material.Filled.FeaturedPlayList" Title="Команды" Expanded="false">
+        <MudNavLink IconColor=Color.Success Href="/teams" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.FeaturedPlayList">Все команды</MudNavLink>
+        <MudNavLink IconColor=Color.Error Href="/teams-t1" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.FeaturedPlayList">TIER-1 команды</MudNavLink>
+        <MudNavLink IconColor=Color.Info Href="/teams-t2" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.FeaturedPlayList">TIER-2 команды</MudNavLink>
+    </MudNavGroup>
+    <MudNavLink Href="/gameservers" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Gamepad">Игровые серверы</MudNavLink>
+    <MudNavGroup Icon="@Icons.Material.Filled.Info" Title="Информация" Expanded="false">
+        <MudNavLink IconColor=Color.Info Href="/rules" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.RuleFolder">Правила проекта</MudNavLink>
+        <MudNavLink IconColor=Color.Success Href="/tournamentrules" Match="NavLinkMatch.All" Icon="@Icons.Custom.Uncategorized.Folder">Турнирные правила</MudNavLink>
+        <MudNavLink IconColor=Color.Secondary Href="/contact" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Contacts">Контакты</MudNavLink>
+        <MudNavLink IconColor=Color.Primary Href="/faq" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.QuestionMark">Вопросы и ответы</MudNavLink>
+        <MudNavLink IconColor=Color.Warning Href="/roadmap" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Map">Roadmap</MudNavLink>
+        <MudNavLink IconColor=Color.Primary Href="/maps" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.DownloadForOffline">Скачать карты</MudNavLink>
+        @*  <MudNavLink IconColor=Color.Surface Href="/issues" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.BugReport">Проблемы</MudNavLink> *@
+    </MudNavGroup>
+    @* <MudNavLink Href="counter" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.Add">Counter</MudNavLink>
+    <MudNavLink Href="weather" Match="NavLinkMatch.Prefix" Icon="@Icons.Material.Filled.List">Weather</MudNavLink> *@
+</MudNavMenu>
+
+@code {
+    private string UnreadedCount;
+
+    protected override void OnInitialized()
+    {
+        var count = repo.GetUnreadedCount(AuthProvider.CurrentUser.Id);
+
+        UnreadedCount = count == 0 ? "" : $"[{count}]";
+
+        base.OnInitialized();
+    }
+}

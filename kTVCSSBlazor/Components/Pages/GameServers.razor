@@ -1,0 +1,52 @@
+﻿@page "/gameservers"
+@using System.Net
+@using kTVCSSBlazor.Data
+@using kTVCSSBlazor.Db.Models;
+@inject Db.Interfaces.IGameServers repo
+@inject IJSRuntime JS
+@inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
+
+<PageTitle>kTVCSS @@ Игровые серверы</PageTitle>
+
+<MudTable Items="@dataSource" Hover="true" Breakpoint="Breakpoint.Sm">
+    <HeaderContent>
+        <MudTh>Название</MudTh>
+        <MudTh>Адрес</MudTh>
+        <MudTh>SourceTV</MudTh>
+        <MudTh>Тип сервера</MudTh>
+        <MudTh>Доступность</MudTh>
+    </HeaderContent>
+    <RowTemplate>
+        <MudTd DataLabel="Название">[#@context.ID] ktvcss.ru</MudTd>
+        <MudTd DataLabel="Адрес"><MudLink Color="Color.Info" OnClick="@(() => { JS.InvokeVoidAsync("connectToServer", (string)context.PUBLICADDRESS + ":" + (short)context.GAMEPORT); })">@context.PUBLICADDRESS:@context.GAMEPORT</MudLink></MudTd>
+        <MudTd DataLabel="SourceTV"><MudLink Color="Color.Info" OnClick="@(() => { JS.InvokeVoidAsync("connectToServer", (string)context.PUBLICADDRESS + ":" + (short)context.SourceTV); })">@context.PUBLICADDRESS:@context.SourceTV</MudLink></MudTd>
+        @if (context.TYPE == 0)
+        {
+            <MudTd style="color: dodgerblue" DataLabel="Тип сервера">Матч-сервер</MudTd>
+        }
+        @if (context.TYPE == 1)
+        {
+            <MudTd style="color: lightsalmon" DataLabel="Тип сервера">Микс-сервер</MudTd>
+        }
+
+        @if (context.BUSY == 0)
+        {
+            <MudTd Style="color: limegreen" DataLabel="Доступность">Свободен</MudTd>
+        }
+        else
+        {
+            <MudTd Style="color: crimson" DataLabel="Доступность">Идет матч</MudTd>
+        }
+        </RowTemplate>
+    </MudTable>
+
+@code {
+    private List<dynamic> dataSource = new();
+
+    protected override Task OnInitializedAsync()
+    {
+        dataSource = repo.Get();
+
+        return base.OnInitializedAsync();
+    }
+}

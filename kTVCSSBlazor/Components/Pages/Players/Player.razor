@@ -1,0 +1,226 @@
+﻿@page "/player/{PlayerID}"
+@using Microsoft.AspNetCore.SignalR.Client
+@using kTVCSSBlazor.Db.Models.Players
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@inject Db.Interfaces.IPlayers repo
+@inject ISnackbar snackbar
+@inject IDialogService DialogService
+@using kTVCSSBlazor.Components.Pages.Players.ProfileItems
+@using kTVCSSBlazor.Db.Interfaces
+@inject NavigationManager nav
+@inject IAdmins admin
+
+<PageTitle>kTVCSS @@ @player.MainInfo.Name</PageTitle>
+
+    <kTVCSSBlazor.Components.Layout.Bar display="@displayBar" />
+    <MudScrollToTop>
+        <MudFab Color="Color.Primary" StartIcon="@Icons.Material.Filled.ArrowCircleUp" />
+    </MudScrollToTop>
+
+@if (player.MainInfo.SteamID == "STEAM_UNDEFINED")
+{
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" md="12">
+            <MudText Align="Align.Center" Typo="Typo.h2">Этот игрок пока не привязал свой STEAM</MudText>
+        </MudItem>
+    </MudGrid>
+}
+else
+{
+    <div style="display: @display" id="player-content-block">
+        <Header AuthProvider="@AuthProvider" Id="@PlayerID" player="@player" />
+
+        @if (player.MainInfo.Block == 1)
+        {
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12">
+                    <MudPaper Style="flex-direction: column;text-align: center;" Class="d-flex align-center justify-center mud-width-full py-8">
+                        <MudTooltip>
+                            <ChildContent>
+                                <MudText Color=Color.Error Typo="Typo.h4">ИГРОК ЗАБЛОКИРОВАН</MudText>
+                            </ChildContent>
+                            <TooltipContent>
+                                <MudText Typo="Typo.h6">Причина: @player.MainInfo.BlockReason</MudText>
+                                <MudText Typo="Typo.h6">Истекает: @player.BanExpires</MudText>
+                            </TooltipContent>
+                        </MudTooltip>
+                    </MudPaper>
+                </MudItem>
+            </MudGrid>
+        }
+
+        @if (!string.IsNullOrEmpty(player.Description))
+        {
+            <kTVCSSBlazor.Components.Pages.Players.ProfileItems.Friends fieldWidthA="@fieldWidthA" player="@player" playerRelationshipBlockHeight="@playerRelationshipBlockHeight" />
+
+            <MudGrid Justify="Justify.Center">
+                <BaseInfo XAxisLabels="@XAxisLabels" Series=@series FieldWidth="@fieldWidth" player="@player" />
+                <FragsStat FieldWidth="@fieldWidth" player="@player" />
+                <KillsStat FieldWidth="@fieldWidth" player="@player" />
+            </MudGrid>
+        }
+        else
+        {
+            <MudGrid Justify="Justify.Center">
+                <BaseInfo XAxisLabels=@XAxisLabels Series=@series FieldWidth="@fieldWidth" player="@player" />
+                <FragsStat FieldWidth="@fieldWidth" player="@player" />
+                <KillsStat FieldWidth="@fieldWidth" player="@player" />
+                <FriendsPartial FieldWidth="@fieldWidth" player="@player" playerRelationshipBlockHeight="@playerRelationshipBlockHeight" />
+            </MudGrid>
+        }
+
+        <Lower isAdmin="@isAdmin" data="@data" options="@options" player="@player" labels="@labels" />
+    </div>
+}
+
+<style>
+    .mud-avatar-filled {
+        color: rgb(255 255 255 / 70%);
+        background-color: rgb(7 7 8 / 30%);
+    }
+
+    .mud-avatar-darkcyan {
+        color: darkcyan;
+    }
+
+    .mud-avatar-red {
+        color: red;
+    }
+
+    .mud-avatar-mediumslateblue {
+        color: mediumslateblue;
+    }
+
+    .mud-avatar-tomato {
+        color: tomato;
+    }
+
+    .mud-avatar-palegreen {
+        color: palegreen;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string PlayerID { get; set; }
+
+    private bool isAdmin = false;
+    private string display = "none";
+    private string displayBar = "block";
+    private List<double> data = new List<double>();
+    private string playerRelationshipBlockHeight = "50%";
+    private int fieldWidth = 3;
+    private int fieldWidthA = 8;
+    private List<string> labels = new List<string>();
+    ChartOptions options = new ChartOptions();
+    ChartOptions mmrHistoryOptions = new ChartOptions();
+    List<ChartSeries> series = new List<ChartSeries>();
+    List<string> XAxisLabels = new List<string>();
+    PlayerInfo player = new PlayerInfo();
+
+    protected override async Task OnInitializedAsync()
+    {
+        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+        
+        string[] colors = { "var(--mud-palette-success)", "var(--mud-palette-error)" };
+        options.ChartPalette = colors;
+        options.YAxisLines = true;
+        mmrHistoryOptions.InterpolationOption = InterpolationOption.NaturalSpline;
+
+        player = repo.GetPlayerInfo(Convert.ToInt32(PlayerID));
+        //player.Description = "Леха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидор";
+        series = new List<ChartSeries>();
+
+        data = new List<double>();
+        data.Add(player.MainInfo.Wons);
+        data.Add(player.MainInfo.Losts);
+
+        labels.Add($"Победы ({player.MainInfo.Wons})");
+        labels.Add($"Поражения ({player.MainInfo.Losts})");
+
+        if (player.MainInfo.RankName.ToUpper() == "UNRANKED")
+        {
+            player.MainInfo.RankName = "На калибровке";
+        }
+
+        playerRelationshipBlockHeight = "100%";
+        
+        if (player.Achiviments.Length > 0)
+        {
+            if (!string.IsNullOrEmpty(player.Description))
+            {
+                fieldWidthA = 8;
+                fieldWidth = 3;
+            }
+            else
+            {
+                fieldWidth = 3;
+            }
+        }
+        else
+        {
+            if (!string.IsNullOrEmpty(player.Description))
+            {
+                fieldWidthA = 12;
+            }
+            fieldWidth = 4;
+        }
+
+        if ((player.Achiviments.Length > 0) && !string.IsNullOrEmpty(player.Description))
+        {
+            fieldWidth = 4;
+        }
+
+        var cds = player.Rating.OrderByDescending(x => x.DateTime).Take(20).Select(x => x.Points).ToList().ToArray();
+
+        var currentRank = player.Ranks.Select(rank => rank.Min <= player.MainInfo.MMR && rank.Max >= player.MainInfo.MMR ? rank : null);
+        var notNullIndex = currentRank.ToList().Select((item, index) => new { item, index })
+                    .Where(x => x.item != null)
+                    .Select(x => x.index).FirstOrDefault();
+
+        if (notNullIndex != 9 && notNullIndex != 0)
+        {
+            var lowerRank = player.Ranks[notNullIndex - 1];
+            var upperRank = player.Ranks[notNullIndex + 1];
+            var thisRank = player.Ranks[notNullIndex];
+            player.Ranks.Clear();
+            player.Ranks.Add(lowerRank);
+            player.Ranks.Add(thisRank);
+            player.Ranks.Add(upperRank);
+        }
+        else
+        {
+            if (notNullIndex == 9)
+            {
+                player.Ranks.Clear();
+            }
+            if (notNullIndex == 0)
+            {
+                var thisRank = player.Ranks[notNullIndex];
+                var upperRank = player.Ranks[notNullIndex + 1];
+                player.Ranks.Clear();
+                player.Ranks.Add(thisRank);
+                player.Ranks.Add(upperRank);
+            }
+        }
+
+        foreach (var item in player.LastTwentyMatches)
+        {
+            item.Link = "/match/" + item.ID;
+        }
+
+        series.Add(new ChartSeries()
+            {
+                Name = "MMR",
+                Data = cds
+            });
+
+        display = "block";
+        displayBar = "none";
+
+        JS.InvokeVoidAsync("hideLoadBar");
+
+        StateHasChanged();
+    }
+}

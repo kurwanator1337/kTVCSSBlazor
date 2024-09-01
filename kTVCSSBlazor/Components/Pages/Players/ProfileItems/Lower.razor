@@ -1,0 +1,84 @@
+﻿@using kTVCSSBlazor.Db.Models.Players
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" sm="6">
+        <MudPaper>
+            <MudDataGrid Items=@player.Weapons FilterCaseSensitivity=DataGridFilterCaseSensitivity.Ignore Hover="true" Virtualize="true" Height="355px" FilterMode=DataGridFilterMode.ColumnFilterMenu Filterable="false" SortMode="@SortMode.None" Groupable="false">
+                <Columns>
+                    <TemplateColumn Title="" CellStyle="margin: auto;width: 200px" Filterable="false">
+                        <CellTemplate>
+                            <img style="margin: auto;" src="/images/weapons/@(context.Item.Weapon).svg"/>
+                        </CellTemplate>
+                    </TemplateColumn>
+                    <PropertyColumn Property="x => x.Weapon" Title="Оружие"/>
+                    <PropertyColumn Property="x => x.Count" Title="Убийства"/>
+                </Columns>
+            </MudDataGrid>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" sm="6">
+        <MudPaper>
+            <MudChart ChartOptions=options ChartType="ChartType.Donut" LegendPosition="Position.Bottom" Width="100%" Height="300px" InputData="@data.ToArray()" InputLabels="@labels.ToArray()">
+                <CustomGraphics>
+                    <text class="donut-inner-text" x="50%" y="45%" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="Helvetica" font-size="3">Матчей</text>
+                    <text class="donut-inner-text" x="50%" y="58%" dominant-baseline="middle" text-anchor="middle" fill="white" font-family="Helvetica" font-size="5">@data.Sum().ToString()</text>
+                </CustomGraphics>
+            </MudChart>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+<MudGrid>
+    <MudItem xs="12">
+        <MudDataGrid Items="@player.LastTwentyMatches" FilterCaseSensitivity=DataGridFilterCaseSensitivity.Ignore Hover="true" Virtualize="true" FilterMode=DataGridFilterMode.ColumnFilterMenu Filterable="false" SortMode="@SortMode.None" Groupable="false">
+            <Columns>
+                <PropertyColumn Property="x => x.DateTime" Title="Дата"/>
+                <TemplateColumn Title="Матч">
+                    <CellTemplate>
+                        <MudLink Color="Color.Inherit" Href="@context.Item.Link">@context.Item.Result</MudLink>
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Результат">
+                    <CellTemplate>
+                        @if (@context.Item.Victory)
+                        {
+                            <div style="color: #2abf4c">Победа</div>
+                        }
+                        else
+                        {
+                            <div style="color: #fd3a2c">Поражение</div>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.Kills" Title="Убийства"/>
+                <PropertyColumn Property="x => x.Deaths" Title="Смерти"/>
+                <PropertyColumn Property="x => x.Headshots" Title="Хедшоты"/>
+            </Columns>
+        </MudDataGrid>
+    </MudItem>
+</MudGrid>
+
+@if (isAdmin)
+{
+    <MudGrid Justify="Justify.Center">
+        <MudItem xs="12" sm="12">
+            <MudPaper Class="pa-4">
+                @foreach (var msg in player.Chat)
+                {
+                    <MudText>[@msg.DateTime]: @msg.Message</MudText>
+                }
+            </MudPaper>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    [Parameter] public PlayerInfo player { get; set; }
+
+    [Parameter] public ChartOptions options { get; set; }
+
+    [Parameter] public List<double> data { get; set; }
+
+    [Parameter] public List<string> labels { get; set; }
+    
+    [Parameter] public bool isAdmin { get; set; }
+}

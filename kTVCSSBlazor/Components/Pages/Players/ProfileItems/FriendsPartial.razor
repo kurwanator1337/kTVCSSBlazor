@@ -1,0 +1,21 @@
+﻿@using kTVCSSBlazor.Db.Models.Players
+
+@if (player.Achiviments.Length > 0)
+{
+    <MudItem xs="12" sm="@FieldWidth">
+        <MudPaper Height="243.5px" Class="py-4 pa-4">
+            @((MarkupString)player.Achiviments)
+        </MudPaper>
+    </MudItem>
+}
+
+@code {
+    [Parameter]
+    public PlayerInfo player { get; set; }
+
+    [Parameter]
+    public string playerRelationshipBlockHeight { get; set; }
+
+    [Parameter]
+    public int FieldWidth { get; set; }
+}

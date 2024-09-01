@@ -1,0 +1,75 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.Web">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|AnyCPU'">
+    <WarningLevel>0</WarningLevel>
+  </PropertyGroup>
+
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|AnyCPU'">
+    <WarningLevel>0</WarningLevel>
+  </PropertyGroup>
+
+  
+  <ItemGroup>
+    <PackageReference Include="Blazored.LocalStorage" Version="4.5.0" />
+    <PackageReference Include="Blazored.Toast" Version="4.2.1" />
+    <PackageReference Include="CurrieTechnologies.Razor.SweetAlert2" Version="5.1.0" />
+    <PackageReference Include="Dapper" Version="2.1.28" />
+    <PackageReference Include="Jenin.FontAwesome.Blazor" Version="1.2.0" />
+    <PackageReference Include="Microsoft.AspNetCore.Components" Version="8.0.7" />
+    <PackageReference Include="Microsoft.AspNetCore.Components.Web" Version="8.0.7" />
+    <PackageReference Include="Microsoft.AspNetCore.SignalR.Client" Version="8.0.7" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore" Version="8.0.6" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.SqlServer" Version="8.0.6" />
+    <PackageReference Include="MudBlazor" Version="6.21.0" />
+    <PackageReference Include="MudBlazor.ThemeManager" Version="1.0.8" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+    <PackageReference Include="Octokit" Version="11.0.1" />
+    <PackageReference Include="Okolni.Source.Query" Version="2.1.0" />
+    <PackageReference Include="Renci.SshNet.Async" Version="1.4.0" />
+    <PackageReference Include="SSH.NET" Version="2024.0.0" />
+    <PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
+    <PackageReference Include="System.IO.Compression.ZipFile" Version="4.3.0" />
+    <PackageReference Include="Telegram.Bot" Version="19.0.0" />
+    <PackageReference Include="VkNet" Version="1.78.0" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <None Include="..\.editorconfig" Link=".editorconfig" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <None Update="logger.txt">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <EmbeddedResource Remove="Properties\Resources.resx" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <Compile Remove="Properties\Resources.Designer.cs" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <Content Remove="Components\Pages\NewsFeed.razor" />
+    <Content Remove="wwwroot\demos\2024-08-24_22_14_19_de_mirage_csgo_v2.dem.zip" />
+  </ItemGroup>
+
+  
+  <ItemGroup>
+    <ProjectReference Include="..\..\..\Blazor.SweetAlert2-master\CurrieTechnologies.Blazor.SweetAlert2\CurrieTechnologies.Blazor.SweetAlert2.csproj" />
+  </ItemGroup>
+  
+</Project>

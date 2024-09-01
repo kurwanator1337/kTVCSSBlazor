@@ -1,0 +1,25 @@
+﻿<CascadingValue Value=false Name="UsePopoverProvider">
+    <MudThemeProvider @bind-IsDarkMode="@_isDarkMode" Theme="MyTheme"></MudThemeProvider>
+</CascadingValue>
+
+@code {
+    private bool _isDarkMode = true;
+
+    public static MudTheme MyTheme => new()
+        {
+            Palette = new PaletteLight()
+            {
+                Primary = "#3399ff",
+                Surface = "#252529",
+                AppbarBackground = "#1a1b21",
+                Background = "#1e1f25"
+            },
+            PaletteDark = new PaletteDark()
+            {
+                Primary = "#3399ff",
+                Surface = "#252529",
+                AppbarBackground = "#1a1b21",
+                Background = "#1e1f25"
+            }
+        };
+}

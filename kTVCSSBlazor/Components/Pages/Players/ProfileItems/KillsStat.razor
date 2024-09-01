@@ -1,0 +1,46 @@
+﻿@using kTVCSSBlazor.Db.Models.Players
+
+<MudItem xs="12" sm="@FieldWidth">
+    <MudPaper>
+        <MudList>
+            <MudTooltip Placement=Placement.Bottom Style="background-color: #19191e" RootStyle="text-align: center;justify-content: center;display: flex;align-items: center;width: 100%;">
+                <ChildContent>
+                    <MudListItem AvatarClass="mud-avatar-red" Avatar="@Icons.Material.Filled.BubbleChart">
+                        KDR: @player.MainInfo.KDR
+                    </MudListItem>
+                </ChildContent>
+                <TooltipContent>
+                    <MudText>Убийств: @player.MainInfo.Kills</MudText>
+                        <MudText>Смертей: @player.MainInfo.Deaths</MudText>
+                    </TooltipContent>
+                </MudTooltip>
+                <MudDivider DividerType="DividerType.Inset" />
+                <MudTooltip Placement=Placement.Bottom Style="background-color: #19191e" RootStyle="text-align: center;justify-content: center;display: flex;align-items: center;width: 100%;">
+                    <ChildContent>
+                        <MudListItem AvatarClass="mud-avatar-mediumslateblue" Avatar="@Icons.Material.Filled.InsertChart">
+                            HSR: @player.MainInfo.HSR
+                    </MudListItem>
+                </ChildContent>
+                <TooltipContent>
+                    <MudText>Хедшотов: @player.MainInfo.Headshots</MudText>
+                    </TooltipContent>
+                </MudTooltip>
+                <MudDivider DividerType="DividerType.Inset" />
+                <MudListItem AvatarClass="mud-avatar-tomato" Avatar="@Icons.Material.Filled.AreaChart">
+                    AVG: @player.MainInfo.AVG
+            </MudListItem>
+            <MudDivider DividerType="DividerType.Inset" />
+            <MudListItem AvatarClass="mud-avatar-palegreen" Avatar="@Icons.Material.Filled.AccessTime">
+                Наиграно: @player.MainInfo.GameHours часов
+            </MudListItem>
+        </MudList>
+    </MudPaper>
+</MudItem>
+
+@code {
+    [Parameter]
+    public PlayerInfo player { get; set; }
+
+    [Parameter]
+    public int FieldWidth { get; set; }
+}

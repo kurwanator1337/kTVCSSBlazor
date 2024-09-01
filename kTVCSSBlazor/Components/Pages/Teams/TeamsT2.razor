@@ -1,0 +1,76 @@
+﻿@page "/teams-t2"
+@using kTVCSSBlazor.Data
+@using kTVCSSBlazor.Db.Models;
+@using kTVCSSBlazor.Db.Models.Players
+@using kTVCSSBlazor.Db.Models.Teams
+@inject Db.Interfaces.ITeams repo
+@inject IJSRuntime JS
+@inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
+
+<PageTitle>kTVCSS @@ TIER-2 команды</PageTitle>
+
+<kTVCSSBlazor.Components.Layout.Bar />
+
+<MudDataGrid T=Team Items="@dataSource" SortMode=SortMode.None Hover="true" Filterable=false QuickFilter=QuickFilter Virtualize="true" Height="81svh">
+    <ToolBarContent>
+        <MudText Typo="Typo.h6">TIER-2 команды</MudText>
+        <MudSpacer />
+        <MudTextField @bind-Value="_searchString" Placeholder="Поиск" Adornment="Adornment.Start" Immediate="true"
+                      AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+    </ToolBarContent>
+    <Columns>
+        <PropertyColumn Property="x => x.Position" Title="" CellStyle="margin-left: 0;width: 5px" />
+        <TemplateColumn Title="" CellStyle="margin-left: 0;width: 15px" Filterable="false">
+            <CellTemplate>
+                <img style="display: flex;justify-content: center;width: 28px;" src="@context.Item.AvatarUrl" />
+            </CellTemplate>
+        </TemplateColumn>
+        <TemplateColumn Title="Команда">
+            <CellTemplate>
+                <MudLink Color="Color.Inherit" Href="@GetTeamLink(context.Item.Id)">@context.Item.Name</MudLink>
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.MatchesPlayed" Title="Сыграно" />
+            <PropertyColumn Property="x => x.MatchesWins" Title="Победы" />
+            <PropertyColumn Property="x => x.MatchesLosts" Title="Поражения" />
+            <PropertyColumn Property="x => x.Rating" Title="Рейтинг" />
+            <PropertyColumn Property="x => x.PlayersCount" Title="Игроков" />
+        </Columns>
+    </MudDataGrid>
+
+    @code {
+    private List<Team> dataSource = new List<Team>();
+    private string _searchString;
+
+    private string GetTeamLink(int id)
+    {
+        return $"/team/{id}";
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            JS.InvokeVoidAsync("showLoadBar");
+            var data = repo.Get().Where(x => x.Tier == 2).ToList();
+            for (int i = 0; i < data.Count; i++)
+            {
+                data[i].Position = i + 1;
+            }
+            dataSource.AddRange(data);
+            JS.InvokeVoidAsync("hideLoadBar");
+        }
+        base.OnAfterRender(firstRender);
+    }
+
+    private Func<Team, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}

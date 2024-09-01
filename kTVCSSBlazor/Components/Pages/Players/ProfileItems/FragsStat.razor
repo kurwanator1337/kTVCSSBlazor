@@ -1,0 +1,31 @@
+﻿@using kTVCSSBlazor.Db.Models.Players
+
+<MudItem xs="12" sm="@FieldWidth">
+    <MudPaper>
+        <MudList>
+            <MudListItem IconColor="Color.Default" Avatar="@Icons.Material.Filled.OpenInBrowser">
+                Энтри: @player.Highlights.OpenFrags
+            </MudListItem>
+            <MudDivider DividerType="DividerType.Inset" />
+            <MudListItem IconColor="Color.Warning" Avatar="@Icons.Material.Filled._3k">
+                Трипл: @player.Highlights.Tripples
+            </MudListItem>
+            <MudDivider DividerType="DividerType.Inset" />
+            <MudListItem AvatarClass="mud-avatar-darkcyan" Avatar="@Icons.Material.Filled._4k">
+                Квадро: @player.Highlights.Quadros
+            </MudListItem>
+            <MudDivider DividerType="DividerType.Inset" />
+            <MudListItem IconColor="Color.Error" Avatar="@Icons.Material.Filled._5k">
+                Эйсы: @player.Highlights.Aces
+            </MudListItem>
+        </MudList>
+    </MudPaper>
+</MudItem>
+
+@code {
+    [Parameter]
+    public PlayerInfo player { get; set; }
+
+    [Parameter]
+    public int FieldWidth { get; set; }
+}

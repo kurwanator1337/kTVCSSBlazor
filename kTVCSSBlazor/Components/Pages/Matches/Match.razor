@@ -1,0 +1,896 @@
+﻿@page "/match/{MatchID}"
+@using System.Text
+@using System.Text.RegularExpressions
+@using System.Globalization
+@using CurrieTechnologies.Razor.SweetAlert2
+@using Dapper
+@using Microsoft.Data.SqlClient
+@using kTVCSSBlazor.Db.Models.Matches
+@using kTVCSSBlazor.Db.Models.Players
+@inject Db.Interfaces.IMatches repo
+@inject Db.Interfaces.IPlayers repoPlayers
+@inject IJSRuntime JS
+@inject IHttpContextAccessor httpContextAccessor
+@inject IHttpClientFactory ClientFactory
+@inject NavigationManager NavigationManager
+@inject SweetAlertService Swal
+@inject Db.Interfaces.IAdmins admin
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IConfiguration config
+
+<kTVCSSBlazor.Components.Layout.Bar display="block" />
+<PageTitle>kTVCSS @@ @match.AName vs @match.BName</PageTitle>
+<MudGrid>
+    <MudItem xs="12">
+        <MudPaper Style=@headerStyle>
+            <div style="display: flex; flex-direction: column;height: 100%;align-items: center;justify-content: space-evenly;">
+                @if (!match.IsFinished)
+                {
+                    <div class="mud-typography-h4" style="color: #dd0000;font-weight: 600;width:100%;text-align:center">LIVE</div>
+                }
+                else
+                {
+                    <div class="mud-typography-h5" style="font-weight: 600;width:100%;text-align:center">@match.MatchDate</div>
+                }
+                <div style="display: flex;flex-direction:row;width: 100%;align-items: center;justify-content: space-between;">
+                    <div style="font-weight: 600;text-align: center;width: 45%;">
+                        <img style="background-repeat: no-repeat;background-position: 50%;border-radius: 50%;width: 80px; height:80px" src="@match.AAvatarUrl" width="60" height="60">
+                        @if (match.AID != null)
+                        {
+                            <MudLink Color=Color.Surface Href="@(string.Concat("/team/", match.AID))"><div class="mud-typography-h5">@match.AName</div></MudLink>
+                        }
+                        else
+                        {
+                            <div class="mud-typography-h5">@match.AName</div>
+                        }
+                    </div>
+                    @if (match.AScore > match.BScore)
+                    {
+                        <div class="mud-typography-h4" style="font-weight: 600;display:flex;text-align:center;"><div style='color: #00b307;'>@match.AScore</div><div style="margin-left: 5px;margin-right: 5px;">  -  </div><div style='color: #dd0000;'>@match.BScore</div></div>
+                    }
+                    else if (match.AScore < match.BScore)
+                    {
+                        <div class="mud-typography-h4" style="font-weight: 600;display:flex;text-align:center;"><div style='color: #dd0000;'>@match.AScore</div><div style="margin-left: 5px;margin-right: 5px;">  -  </div><div style='color: #00b307;'>@match.BScore</div></div>
+                    }
+                    else
+                    {
+                        <div class="mud-typography-h4" style="font-weight: 600;display:flex;text-align:center;"><div>@match.AScore</div><div style="margin-left: 5px;margin-right: 5px;">  -  </div><div>@match.BScore</div></div>
+                    }
+                    <div style="font-weight: 600;text-align: center;width: 45%;">
+                        <img style="background-repeat: no-repeat;background-position: 50%;border-radius: 50%;width: 80px; height:80px" src="@match.BAvatarUrl" width="60" height="60">
+                        @if (match.BID != null)
+                        {
+                            <MudLink Color=Color.Surface Href="@(string.Concat("/team/", match.BID))"><div class="mud-typography-h5">@match.BName</div></MudLink>
+                        }
+                        else
+                        {
+                            <div class="mud-typography-h5">@match.BName</div>
+                        }
+                    </div>
+                </div>
+                <div class="d-flex-column">
+                    @if (!match.IsFinished)
+                    {
+                        <MudTooltip Text="Подключиться к SourceTV">
+                            <MudIconButton Color="Color.Info" OnClick="() => { ConnectToSourceTV(); }" Icon="@Icons.Material.Filled.ConnectedTv"></MudIconButton>
+                        </MudTooltip>
+                        @if (isAdmin)
+                        {
+                            <MudTooltip Text="Остановить матч">
+                                <MudIconButton OnClick="@(() => { admin.StopMatch(Convert.ToInt32(MatchID), AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); })" Style="font-size: 0.8em;" Variant="Variant.Text" Icon="@Icons.Material.Filled.Cancel" Color="Color.Secondary">Остановить матч</MudIconButton>
+                            </MudTooltip>
+                        }
+                    }
+                    <MudTooltip Text=@matchLength>
+                        <MudIconButton Color="Color.Error" Icon="@Icons.Material.Filled.AccessAlarm"></MudIconButton>
+                    </MudTooltip>
+                    @if (match.IsFinished)
+                    {
+                        <MudTooltip Text="Скачать демо-запись">
+                            <MudIconButton Disabled="@demoDownloadButtonDisabled" OnClick="async () => { await DemoDownload(); }" Color="Color.Success" Icon="@Icons.Material.Filled.Download"></MudIconButton>
+                        </MudTooltip>
+                        <MudTooltip Text="Скачать лучшие моменты матча (доступно VIP пользователям)">
+                            <MudIconButton OnClick="@(() => { NavigationManager.NavigateTo($"/match/highlights/{MatchID}"); })" Disabled="@isVip" Color="Color.Warning" Icon="@Icons.Material.Filled.Movie"></MudIconButton>
+                        </MudTooltip>
+                    }
+                </div>
+            </div>
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12">
+        @if (!isMobile)
+        {
+            <MudPaper Style="min-height: 22vh">
+                <div style="height: 48px;display: flex;justify-content: space-evenly;align-items: center;border-bottom: 1px solid;">
+                    <div style="display: flex;color: white; font-size: 24px;">Составы команд</div>
+                </div>
+
+                <div style="min-height: 160px;display: flex;justify-content: center;align-items: center;">
+                    <div style="display: flex; flex-flow: wrap;width: 45%;justify-content: center;">
+                        @foreach (var player in match.AMPlayers)
+                        {
+                            <div style="display: flex;flex-direction: column;align-items: center;color: white;margin-right: 3%;">
+                                <div>
+                                    <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 74px; height: 74px; min-width: 74px;margin-bottom: 3%;" src="@player.AvatarUrl">
+                                </div>
+                                <div>
+                                    <a href="/player/@Convert.ToInt32(player.ID)">@player.DisplayName</a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="font-size: 2.5em; color: white; text-transform: uppercase;text-align: center;width: 10%;">vs</div>
+
+                    <div style="display: flex; flex-flow: wrap;width: 45%;justify-content: center;">
+                        @foreach (var player in match.BMPlayers)
+                        {
+                            <div style="display: flex;flex-direction: column;align-items: center;color: white;margin-right: 3%;">
+                                <div>
+                                    <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 74px; height: 74px; min-width: 74px;margin-bottom: 3%;" src="@player.AvatarUrl">
+                                </div>
+                                <div>
+                                    <a href="/player/@Convert.ToInt32(player.ID)">@player.DisplayName</a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </MudPaper>
+        }
+        else
+        {
+            <MudPaper>
+                <div style="height: 48px;display: flex;justify-content: space-evenly;align-items: center;border-bottom: 1px solid;">
+                    <div style="display: flex;color: white; font-size: 24px;">Составы команд</div>
+                </div>
+
+                <div style="display: flex;flex-direction: column;justify-content: center;align-items: center;">
+                    <div style="display: flex; flex-direction: column;width: 100%;margin-top: 2%;justify-content: center;">
+                        @foreach (var player in match.AMPlayers)
+                        {
+                            <div style="display: flex;flex-direction: column;align-items: center;color: white;margin-bottom: 3%;">
+                                <div>
+                                    <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 74px; height: 74px; min-width: 74px;margin-bottom: 3%;" src="@player.AvatarUrl">
+                                </div>
+                                <div>
+                                    <a href="/player/@Convert.ToInt32(player.ID)">@player.DisplayName</a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+
+                    <div style="font-size: 2.5em; color: white; text-transform: uppercase;text-align: center;width: 100%;margin-bottom: 3%;">vs</div>
+
+                    <div style="display: flex; flex-direction: column;width: 100%;justify-content: center;">
+                        @foreach (var player in match.BMPlayers)
+                        {
+                            <div style="display: flex;flex-direction: column;align-items: center;color: white;margin-bottom: 3%;">
+                                <div>
+                                    <img style="box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 74px; height: 74px; min-width: 74px;margin-bottom: 3%;" src="@player.AvatarUrl">
+                                </div>
+                                <div>
+                                    <a href="/player/@Convert.ToInt32(player.ID)">@player.DisplayName</a>
+                                </div>
+                            </div>
+                        }
+                    </div>
+                </div>
+            </MudPaper>
+        }
+    </MudItem>
+</MudGrid>
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudPaper>
+            @if (!isMobile)
+            {
+                <MudDataGrid Items="@match.ATeamGrid" SortMode=SortMode.None Hover="true" Filterable=false Dense=true Virtualize="true">
+                    <Columns>
+                        <TemplateColumn Title="" CellStyle="margin-left: 0;width: 15px" Filterable="false">
+                            <CellTemplate>
+                                <img style="display: flex;justify-content: center;width: 28px;" src="@context.Item.PictureUrl" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="" CellStyle="margin-left: 0;width: 10px" Filterable="false">
+                            <CellTemplate>
+                                <img style='display: flex;justify-content: center;cursor: pointer; background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 25px; height: 25px;' src='@context.Item.AvatarUrl' />
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn CellStyle="width: 400px" Title="Ник">
+                            <CellTemplate>
+                                @if (context.Item.SteamID == match.MVP)
+                                {
+                                    <MudLink Color="Color.Warning" Href="@context.Item.ID">@context.Item.Name</MudLink>
+                                }
+                                else
+                                {
+                                    <MudLink Color="Color.Inherit" Href="@context.Item.ID">@context.Item.Name</MudLink>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Kills" Title="Убийства" />
+                        <PropertyColumn Property="x => x.Deaths" Title="Смерти" />
+                        <PropertyColumn Property="x => x.Headshots" Title="Хедшоты" />
+                        <PropertyColumn Property="x => x.KRR" Title="У/Р" />
+                        <PropertyColumn Property="x => x.KDR" />
+                        <PropertyColumn Property="x => x.HSR" />
+                        <PropertyColumn Property="x => x.ADR" />
+                        <PropertyColumn Property="x => x.Damage" Title="Урон" />
+                        <PropertyColumn Property="x => x.OpenFrags" Title="Энтри" />
+                        <PropertyColumn Property="x => x.Triples" Title="Трипл" />
+                        <PropertyColumn Property="x => x.Quadros" Title="Квадро" />
+                        <PropertyColumn Property="x => x.Aces" Title="Эйсы" />
+                    </Columns>
+                </MudDataGrid>
+            }
+            else
+            {
+                <MudDataGrid Items="@match.ATeamGrid" SortMode=SortMode.None Hover="true" Filterable=false Dense=true Virtualize="true">
+                    <Columns>
+                        <TemplateColumn Title="Ник">
+                            <CellTemplate>
+                                @if (context.Item.SteamID == match.MVP)
+                                {
+                                    <MudLink Color="Color.Warning" Href="@context.Item.ID">@context.Item.Name</MudLink>
+                                }
+                                else
+                                {
+                                    <MudLink Color="Color.Inherit" Href="@context.Item.ID">@context.Item.Name</MudLink>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Kills" Title="Убийства" />
+                        <PropertyColumn Property="x => x.Deaths" Title="Смерти" />
+                        <PropertyColumn Property="x => x.Headshots" Title="Хедшоты" />
+                        <PropertyColumn Property="x => x.KRR" Title="У/Р" />
+                        <PropertyColumn Property="x => x.KDR" />
+                        <PropertyColumn Property="x => x.HSR" />
+                        <PropertyColumn Property="x => x.ADR" />
+                        <PropertyColumn Property="x => x.Damage" Title="Урон" />
+                        <PropertyColumn Property="x => x.OpenFrags" Title="Энтри" />
+                        <PropertyColumn Property="x => x.Triples" Title="Трипл" />
+                        <PropertyColumn Property="x => x.Quadros" Title="Квадро" />
+                        <PropertyColumn Property="x => x.Aces" Title="Эйсы" />
+                    </Columns>
+                </MudDataGrid>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudGrid>
+    <MudItem xs="12">
+        <MudPaper>
+            @if (!isMobile)
+            {
+                <MudDataGrid Items="@match.BTeamGrid" SortMode=SortMode.None Hover="true" Filterable=false Dense=true Virtualize="true">
+                    <Columns>
+                        <TemplateColumn Title="" CellStyle="margin-left: 0;width: 15px" Filterable="false">
+                            <CellTemplate>
+                                <img style="display: flex;justify-content: center;width: 28px;" src="@context.Item.PictureUrl" />
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn Title="" CellStyle="margin-left: 0;width: 10px" Filterable="false">
+                            <CellTemplate>
+                                <img style='display: flex;justify-content: center;cursor: pointer; background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 25px; height: 25px;' src='@context.Item.AvatarUrl' />
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <TemplateColumn CellStyle="width: 400px" Title="Ник">
+                            <CellTemplate>
+                                @if (context.Item.SteamID == match.MVP)
+                                {
+                                    <MudLink Color="Color.Warning" Href="@context.Item.ID">@context.Item.Name</MudLink>
+                                }
+                                else
+                                {
+                                    <MudLink Color="Color.Inherit" Href="@context.Item.ID">@context.Item.Name</MudLink>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Kills" Title="Убийства" />
+                        <PropertyColumn Property="x => x.Deaths" Title="Смерти" />
+                        <PropertyColumn Property="x => x.Headshots" Title="Хедшоты" />
+                        <PropertyColumn Property="x => x.KRR" Title="У/Р" />
+                        <PropertyColumn Property="x => x.KDR" />
+                        <PropertyColumn Property="x => x.HSR" />
+                        <PropertyColumn Property="x => x.ADR" />
+                        <PropertyColumn Property="x => x.Damage" Title="Урон" />
+                        <PropertyColumn Property="x => x.OpenFrags" Title="Энтри" />
+                        <PropertyColumn Property="x => x.Triples" Title="Трипл" />
+                        <PropertyColumn Property="x => x.Quadros" Title="Квадро" />
+                        <PropertyColumn Property="x => x.Aces" Title="Эйсы" />
+                    </Columns>
+                </MudDataGrid>
+            }
+            else
+            {
+                <MudDataGrid Items="@match.BTeamGrid" SortMode=SortMode.None Hover="true" Filterable=false Dense=true Virtualize="true">
+                    <Columns>
+                        <TemplateColumn Title="Ник">
+                            <CellTemplate>
+                                @if (context.Item.SteamID == match.MVP)
+                                {
+                                    <MudLink Color="Color.Warning" Href="@context.Item.ID">@context.Item.Name</MudLink>
+                                }
+                                else
+                                {
+                                    <MudLink Color="Color.Inherit" Href="@context.Item.ID">@context.Item.Name</MudLink>
+                                }
+                            </CellTemplate>
+                        </TemplateColumn>
+                        <PropertyColumn Property="x => x.Kills" Title="Убийства" />
+                        <PropertyColumn Property="x => x.Deaths" Title="Смерти" />
+                        <PropertyColumn Property="x => x.Headshots" Title="Хедшоты" />
+                        <PropertyColumn Property="x => x.KRR" Title="У/Р" />
+                        <PropertyColumn Property="x => x.KDR" />
+                        <PropertyColumn Property="x => x.HSR" />
+                        <PropertyColumn Property="x => x.ADR" />
+                        <PropertyColumn Property="x => x.Damage" Title="Урон" />
+                        <PropertyColumn Property="x => x.OpenFrags" Title="Энтри" />
+                        <PropertyColumn Property="x => x.Triples" Title="Трипл" />
+                        <PropertyColumn Property="x => x.Quadros" Title="Квадро" />
+                        <PropertyColumn Property="x => x.Aces" Title="Эйсы" />
+                    </Columns>
+                </MudDataGrid>
+            }
+        </MudPaper>
+    </MudItem>
+</MudGrid>
+
+<MudGrid>
+    <MudItem xs="12" md="6">
+        <MudPaper Class="pa-4 my-4">
+            @if (!isMobile)
+            {
+                <div style="width:100%;height: 40vh;overflow: auto;font-size: 16px;">
+                    @((MarkupString)matchLog)
+                </div>
+            }
+            else
+            {
+                <div style="width:100%;overflow: auto;font-size: 12px;">
+                    @((MarkupString)matchLog)
+                </div>
+            }
+        </MudPaper>
+    </MudItem>
+    @if (!isMobile)
+    {
+        <MudItem xs="12" md="6">
+            <MudPaper Class="pa-4 my-4">
+                <div style="display: flex; flex-direction: row;width:100%;height: 40vh;overflow: none;font-size: 22px;">
+                    <div style="display: flex;flex-direction: row;width: 45%">
+                        <div style="align-items: start;text-align:center" class="player-avatar-and-name">
+                            <div>
+                                <img class="player-avatar-picture" src="@match.ABestPlayer.PhotoUrl">
+                                <div>
+                                    <a href="/player/@match.ABestPlayer.Id">@match.ABestPlayer.Name</a>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="player-stat-block">
+                            <div style="color: @_aMMRColor">@match.ABestPlayer.MMR</div>
+                            <div style="color: @_aAVGColor">@match.ABestPlayer.AVG</div>
+                            <div style="color: @_aKDRColor">@match.ABestPlayer.KDR</div>
+                            <div style="color: @_aHSRColor">@match.ABestPlayer.HSR</div>
+                            <div style="color: @_aWinrateColor">@Math.Round(match.ABestPlayer.Winrate)%</div>
+                        </div>
+                    </div>
+                    <div style="width: 10%; height: 90%; margin: auto; display: flex; flex-direction: column; justify-content: space-evenly; align-items: center;">
+                        <div>MMR</div>
+                        <div>AVG</div>
+                        <div>KDR</div>
+                        <div>HSR</div>
+                        <div>Winrate</div>
+                    </div>
+                    <div style="display: flex;flex-direction: row;width: 45%">
+                        <div class="player-stat-block">
+                            <div style="color: @_bMMRColor">@match.BBestPlayer.MMR</div>
+                            <div style="color: @_bAVGColor">@match.BBestPlayer.AVG</div>
+                            <div style="color: @_bKDRColor">@match.BBestPlayer.KDR</div>
+                            <div style="color: @_bHSRColor">@match.BBestPlayer.HSR</div>
+                            <div style="color: @_bWinrateColor">@Math.Round(match.BBestPlayer.Winrate)%</div>
+                        </div>
+                        <div style="align-items:end;text-align:center" class="player-avatar-and-name">
+                            <div>
+                                <img class="player-avatar-picture" src="@match.BBestPlayer.PhotoUrl">
+                                <div>
+                                    <a href="/player/@match.BBestPlayer.Id">@match.BBestPlayer.Name</a>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </MudPaper>
+        </MudItem>
+    }
+</MudGrid>
+
+<MudContainer Style="width: 100%">
+        <MudPaper Elevation="2" Class="pa-4 my-4">
+            <MudText Typo="Typo.h6" GutterBottom="true">
+                Обсуждение матча
+            </MudText>
+
+            @if (coms is not null)
+            {
+                @if (coms.Count == 0)
+                {
+                    <MudText Typo="Typo.body1">
+                        Обсуждение пока не начиналось. Будьте первым, кто оставит комментарий!
+                    </MudText>
+                }
+                else
+                {
+                    @foreach (var item in coms)
+                    {
+                        <MudPaper Elevation="0" Class="pa-3 my-2">
+                            <MudText Typo="Typo.body2" Color="Color.Tertiary" GutterBottom="true">
+                                @item.USER - @DateTime.Parse(item.DATETIME.ToString()).ToLongDateString() @DateTime.Parse(item.DATETIME.ToString()).ToShortTimeString()
+                            </MudText>
+
+                            <div style="width: 100%;white-space: normal;overflow-wrap: break-word;">
+                                <MudText Typo="Typo.body1">
+                                    @item.TEXT
+                                </MudText>
+                            </div>
+                        </MudPaper>
+                    }
+                }
+            }
+
+            <MudPaper Elevation="2" Class="pa-4 my-2">
+                <MudText Typo="Typo.h6" GutterBottom="true">
+                    Оставить комментарий
+                </MudText>
+
+                <MudTextField @bind-Value=@text T="string" Label="Ваш комментарий" Variant="Variant.Filled" FullWidth="true" Lines="5" />
+                <MudButton OnClick="Send" Variant="Variant.Filled" Color="Color.Primary" Class="mt-2">
+                    Отправить
+                </MudButton>
+            </MudPaper>
+        </MudPaper>
+    </MudContainer>
+
+<style>
+    .player-avatar-and-name {
+        height: 100%;
+        width: 50%;
+        margin: 0 0;
+        display: flex;
+        flex-direction: column;
+        justify-content: center;
+    }
+
+    .player-avatar-picture {
+        box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000;
+        background-repeat: no-repeat;
+        background-position: 50%;
+        border-radius: 50%;
+        width: 150px;
+        height: 150px;
+        margin-bottom: 3%;
+    }
+
+    .player-stat-block {
+        height: 90%;
+        margin: auto;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-evenly;
+        align-items: center;
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string MatchID { get; set; }
+
+    private List<dynamic> coms = new List<dynamic>();
+    private string text = "";
+
+    bool ready = false;
+
+    private MatchInfo match = new MatchInfo();
+    private bool isMobile { get; set; }
+    private string headerStyle = string.Empty;
+    private bool dataLoadFinished = false;
+    private string matchLength = string.Empty;
+    HttpClient httpClient = null!;
+    private bool isVip = false;
+    private bool setIntervalShouldStop = false;
+    private string matchLog { get; set; } = string.Empty;
+
+    private string _aMMRColor;
+    private string _aAVGColor;
+    private string _aKDRColor;
+    private string _aHSRColor;
+    private string _aWinrateColor;
+    private string _bMMRColor;
+    private string _bAVGColor;
+    private string _bKDRColor;
+    private string _bHSRColor;
+    private string _bWinrateColor;
+
+    private string moreColor = "#00ffae";
+    private string lessColor = "#ff2225";
+
+    private void Send()
+    {
+        using (var sql = new SqlConnection(config.GetConnectionString("db")))
+        {
+            sql.Open();
+
+            DynamicParameters dynamicParameters = new();
+            dynamicParameters.Add("id", Convert.ToInt32(MatchID));
+            dynamicParameters.Add("user", AuthProvider.CurrentUser.Username);
+            dynamicParameters.Add("text", text);
+
+            sql.Execute("AddComToMatch", dynamicParameters, commandType: System.Data.CommandType.StoredProcedure);
+
+            coms = new();
+            coms.AddRange(sql.Query($"SELECT * FROM MatchesCommentaries WHERE ID = {MatchID} ORDER BY DATETIME ASC"));
+            text = "";
+
+            InvokeAsync(StateHasChanged);
+        }
+    }
+
+    private void ConnectToSourceTV()
+    {
+        var stv = repo.GetSourceTV(Convert.ToInt32(MatchID));
+        var options = new SweetAlertOptions
+            {
+                Title = "SourceTV",
+                Input = SweetAlertInputType.Text,
+                InputValue = $"connect {stv}",
+            };
+
+        Swal.FireAsync(options);
+    }
+
+    async Task ShowAlert(string caption, string text, int time, SweetAlertIcon icon, Func<Task> customCallback)
+    {
+        var options = new SweetAlertOptions
+            {
+                TimerProgressBar = true,
+                Timer = time,
+                Title = caption,
+                Text = text,
+                Icon = icon,
+                WillClose = new SweetAlertCallback(async () =>
+                {
+                    await customCallback();
+                })
+            };
+
+        await Swal.FireAsync(options);
+    }
+
+    private bool demoDownloadButtonDisabled = false;
+
+    private async Task DemoDownload()
+    {
+        var filePath = Path.Combine("wwwroot", "demos", match.DemoUrl + ".dem.zip");
+
+        if (File.Exists(filePath))
+        {
+            demoDownloadButtonDisabled = true;
+
+            ShowAlert("Скачивание демо-записи", "Подождите, мы готовим файл к загрузке...", 3000, SweetAlertIcon.Warning, null);
+
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+
+            using (var outputStream = new MemoryStream(fileBytes))
+            {
+                using var streamRef = new DotNetStreamReference(stream: outputStream);
+
+                await JS.InvokeVoidAsync("downloadFileFromStream", $"ktvcss-match-id-{MatchID}.zip", streamRef);
+            }
+        }
+        else
+        {
+            await ShowAlert("Ошибка", "Извините, мы не смогли найти демо-запись этого матча 😭", 3000, SweetAlertIcon.Error, null);
+        }
+    }
+
+    private bool isAdmin = false;
+
+    protected override async Task OnInitializedAsync()
+    {
+        JS.InvokeVoidAsync("showLoadBar");
+
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            isMobile = true;
+        }
+
+        httpClient = ClientFactory.CreateClient();
+        match = repo.GetMatchByID(Convert.ToInt32(MatchID));
+
+        foreach (var player in match.ATeamGrid)
+        {
+            player.ID = $"/player/{player.ID}";
+        }
+
+        foreach (var player in match.BTeamGrid)
+        {
+            player.ID = $"/player/{player.ID}";
+        }
+
+        headerStyle = isMobile ? "background-image: url(/images/mapsbackgrs/" + match.MapName + ".jpg);height: 300px;background-size: 200% auto;background-color: rgb(0 0 0 / 65%); background-position: center; background-blend-mode: multiply;" :
+        "background-image: url(/images/mapsbackgrs/" + match.MapName + ".jpg);height: 250px;background-size: 100% auto;background-color: rgb(0 0 0 / 65%); background-position: center; background-blend-mode: multiply;";
+
+        matchLength = "Длительность матча: " + match.MatchLength;
+
+        ParseMatchLog(isMobile);
+
+        _aAVGColor = match.ABestPlayer.AVG > match.BBestPlayer.AVG ? moreColor : lessColor;
+        _aHSRColor = match.ABestPlayer.HSR > match.BBestPlayer.HSR ? moreColor : lessColor;
+        _aKDRColor = match.ABestPlayer.KDR > match.BBestPlayer.KDR ? moreColor : lessColor;
+        _aWinrateColor = match.ABestPlayer.Winrate > match.BBestPlayer.Winrate ? moreColor : lessColor;
+        _aMMRColor = match.ABestPlayer.MMR > match.BBestPlayer.MMR ? moreColor : lessColor;
+
+        _bAVGColor = match.ABestPlayer.AVG < match.BBestPlayer.AVG ? moreColor : lessColor;
+        _bHSRColor = match.ABestPlayer.HSR < match.BBestPlayer.HSR ? moreColor : lessColor;
+        _bKDRColor = match.ABestPlayer.KDR < match.BBestPlayer.KDR ? moreColor : lessColor;
+        _bWinrateColor = match.ABestPlayer.Winrate < match.BBestPlayer.Winrate ? moreColor : lessColor;
+        _bMMRColor = match.ABestPlayer.MMR < match.BBestPlayer.MMR ? moreColor : lessColor;
+
+        using (var sql = new SqlConnection(config.GetConnectionString("db")))
+        {
+            sql.Open();
+
+            coms.AddRange(sql.Query($"SELECT * FROM MatchesCommentaries WHERE ID = {MatchID} ORDER BY DATETIME ASC"));
+
+            ready = true;
+        }
+
+        dataLoadFinished = true;
+
+        isVip = await repoPlayers.IsVip(AuthProvider.CurrentUser.SteamId);
+        isVip = !isVip;
+
+        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+
+        NavigationManager.LocationChanged += OnLocationChanged;
+    }
+
+    private void ParseMatchLog(bool mobile)
+    {
+        StringBuilder sb = new StringBuilder();
+        string rowStyle = mobile ? "display: flex;height: 60px;text-wrap: wrap;text-align: center;align-items: center;" : "display: flex;height:40px";
+        string weaponStyle = mobile ? "display: flex;align-items: center;" : "";
+        string weaponHeight = mobile ? "16px" : "24px";
+
+        if (match.IsFinished)
+        {
+            sb.Append($"<div style='{rowStyle}'><div style='color: #cddc39'>Матч окончен! {matchLength}!</div></div>");
+        }
+
+        foreach (var log in match.MatchLog)
+        {
+            if (log.Record.StartsWith("<Round Start>"))
+            {
+                Regex regex = new Regex(@"<(.*?)>\s+\[(.*?)\]");
+                var match = regex.Match(log.Record);
+                if (match.Success)
+                {
+                    string round = match.Groups[1].Value;
+                    var timestamp = match.Groups[2].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #0dde9c'>Начало раунда&nbsp;</div></div>");
+                }
+                continue;
+            }
+            if (log.Record.StartsWith("<Round End>"))
+            {
+                Regex regex = new Regex(@"<(.*?)> (.*?) \[(\d+)-(\d+)\] (.*?) \[(.*?)\]");
+                var match = regex.Match(log.Record);
+                if (match.Success)
+                {
+                    try
+                    {
+                        string aName = match.Groups[2].Value;
+                        string bName = match.Groups[5].Value;
+                        string aScore = match.Groups[3].Value;
+                        string bScore = match.Groups[4].Value;
+                        var timestamp = match.Groups[6].Value;
+                        var timespan = TimeSpan.Parse(timestamp);
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #0dde9c'>Раунд закончился&nbsp;</div><div style='color: #f42f46'>{aName}&nbsp;</div><div style='color: white'>[{aScore}&nbsp-&nbsp{bScore}]&nbsp</div><div style='color: #3399ff'>{bName}&nbsp;</div></div>");
+                    }
+                    catch (Exception)
+                    {
+                        //
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("said:"))
+            {
+                var match = Regex.Match(log.Record, @"^(.*?) <([\w_:\d]+)> said: (.*?) \[([\d:.]+)\]$");
+                if (match.Success)
+                {
+                    var nickname = match.Groups[1].Value;
+                    var steamId = match.Groups[2].Value;
+                    var message = match.Groups[3].Value;
+                    var timestamp = match.Groups[4].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(nickname)).Any())
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #f42f46'>{nickname}:&nbsp;</div><div>{message}</div></div>");
+                    }
+                    else
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #3399ff'>{nickname}:&nbsp;</div><div>{message}</div></div>");
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("> killed "))
+            {
+                var match = Regex.Match(log.Record, @"(.*?)<(.+?)>\s+killed\s+(.*?)<(.+?)>\s+with\s+weapon\s+<(.*?)>\s+(\<.+?\>) \[([\d:.]+)\]$");
+                if (match.Success)
+                {
+                    var timespan = TimeSpan.Parse(match.Groups[7].Value);
+                    var killer = match.Groups[1].Value;
+                    var loser = match.Groups[3].Value;
+                    var weapon = match.Groups[5].Value;
+                    var headshot = match.Groups[6].Value;
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(killer)).Any())
+                    {
+                        if (headshot != "<True>")
+                        {
+                            sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #f42f46'>{killer}&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/weapons/{weapon}.svg'>&nbsp;&nbsp;&nbsp;</div><div style='color: #3399ff'>{loser}&nbsp;</div></div>");
+                        }
+                        else
+                        {
+                            sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #f42f46'>{killer}&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/weapons/{weapon}.svg'>&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/headshot.svg'>&nbsp;&nbsp;</div><div style='color: #3399ff'>{loser}&nbsp;</div></div>");
+                        }
+                    }
+                    else
+                    {
+                        if (headshot != "<True>")
+                        {
+                            sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #3399ff'>{killer}&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/weapons/{weapon}.svg'>&nbsp;&nbsp;&nbsp;</div><div style='color: #f42f46'>{loser}&nbsp;</div></div>");
+                        }
+                        else
+                        {
+                            sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #3399ff'>{killer}&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/weapons/{weapon}.svg'>&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/headshot.svg'>&nbsp;&nbsp;</div><div style='color: #f42f46'>{loser}&nbsp;</div></div>");
+                        }
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("made a triple kill!"))
+            {
+                var match = Regex.Match(log.Record, @"(.*?) made a triple kill! \[(.*?)\]");
+                if (match.Success)
+                {
+                    var nickname = match.Groups[1].Value;
+                    var timestamp = match.Groups[2].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(nickname)).Any())
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ffbf00'>ДЕЛАЕТ ТРИПЛ КИЛЛ!</div></div>");
+                    }
+                    else
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ffbf00'>ДЕЛАЕТ ТРИПЛ КИЛЛ!</div></div>");
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("made a quad kill!"))
+            {
+                var match = Regex.Match(log.Record, @"(.*?) made a quad kill! \[(.*?)\]");
+                if (match.Success)
+                {
+                    var nickname = match.Groups[1].Value;
+                    var timestamp = match.Groups[2].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(nickname)).Any())
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ff3a95'>ДЕЛАЕТ КВАДРО КИЛЛ!</div></div>");
+                    }
+                    else
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ff3a95'>ДЕЛАЕТ КВАДРО КИЛЛ!</div></div>");
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("MADE A RAMPAGE!!!"))
+            {
+                var match = Regex.Match(log.Record, @"(.*?) MADE A RAMPAGE!!! \[(.*?)\]");
+                if (match.Success)
+                {
+                    var nickname = match.Groups[1].Value;
+                    var timestamp = match.Groups[2].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(nickname)).Any())
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                    }
+                    else
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{timespan.ToString(@"hh\:mm\:ss")}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                    }
+                }
+                continue;
+            }
+        }
+
+        sb.Append($"<div style='{rowStyle}'><div style='color: #cddc39'>{match.AName} (~{match.ATeamAVG}) vs {match.BName} (~{match.BTeamAVG}) на сервере {match.ServerName}!</div></div>");
+        sb.Append($"<div style='{rowStyle}'><div style='color: #cddc39'>Матч начался!</div></div>");
+
+        matchLog = sb.ToString();
+    }
+
+    private void OnLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        setIntervalShouldStop = true;
+    }
+
+    private async Task Updater()
+    {
+        while (!match.IsFinished)
+        {
+            if (setIntervalShouldStop) break;
+
+            await Task.Delay(5000);
+
+            match = repo.GetMatchByID(Convert.ToInt32(MatchID));
+
+            foreach (var player in match.ATeamGrid)
+            {
+                player.ID = $"/player/{player.ID}";
+            }
+
+            foreach (var player in match.BTeamGrid)
+            {
+                player.ID = $"/player/{player.ID}";
+            }
+
+            matchLength = "Длительность матча: " + match.MatchLength;
+
+            ParseMatchLog(isMobile);
+
+            StateHasChanged();
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+            if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+            {
+                isMobile = true;
+            }
+
+            while (!dataLoadFinished)
+            {
+                // waiting for loading match data...
+            }
+
+            JS.InvokeVoidAsync("hideLoadBar");
+
+            if (!match.IsFinished)
+            {
+                Updater();
+            }
+        }
+    }
+}

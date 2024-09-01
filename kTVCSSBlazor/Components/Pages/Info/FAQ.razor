@@ -1,0 +1,40 @@
+﻿@page "/faq"
+@using MudBlazor
+@inject Db.Interfaces.IFAQ faq
+@using kTVCSSBlazor.Db.Models.FAQ
+
+<PageTitle>kTVCSS @@ FAQ</PageTitle>
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" md="9">
+        <MudText Typo="Typo.h4">Вопросы и ответы</MudText>
+        <MudDivider Class="my-2" />
+        <MudExpansionPanels>
+            @foreach (var item in data)
+            {
+                <MudExpansionPanel>
+                    <TitleContent>
+                        <div class="d-flex">
+                            <MudIcon Icon="@Icons.Material.Filled.QuestionMark" class="mr-3"></MudIcon>
+                            <MudText><strong>@item.Question</strong></MudText>
+                        </div>
+                    </TitleContent>
+                    <ChildContent>
+                        <MudText>@item.Answer</MudText>
+                    </ChildContent>
+                </MudExpansionPanel>
+            }
+        </MudExpansionPanels>
+    </MudItem>
+</MudGrid>
+
+@code {
+    private List<Model> data = new();
+
+    protected override Task OnInitializedAsync()
+    {
+        data = faq.Get();
+
+        return base.OnInitializedAsync();
+    }
+}

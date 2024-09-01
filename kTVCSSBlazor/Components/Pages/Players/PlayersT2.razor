@@ -1,0 +1,135 @@
+﻿@page "/players-t2"
+@using kTVCSSBlazor.Data
+@using kTVCSSBlazor.Db.Models;
+@using kTVCSSBlazor.Db.Models.Players
+@inject Db.Interfaces.IPlayers repo
+@inject IJSRuntime JS
+@inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
+@inject IHttpContextAccessor httpContextAccessor
+
+<PageTitle>kTVCSS @@ TIER-2 игроки</PageTitle>
+
+<kTVCSSBlazor.Components.Layout.Bar />
+
+@if (!isMobile)
+{
+    <MudDataGrid T=TotalPlayer Items="@dataSource" SortMode=SortMode.None Hover="true" Filterable=false QuickFilter=QuickFilter Virtualize="true" Height="81svh">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">TIER-2 игроки</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Поиск" Adornment="Adornment.Start" Immediate="true"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <Columns>
+            <PropertyColumn Property="x => x.Position" Title="" CellStyle="margin-left: 0;width: 5px" />
+            <TemplateColumn Title="" CellStyle="margin-left: 0;width: 15px" Filterable="false">
+                <CellTemplate>
+                    <img style="display: flex;justify-content: center;width: 28px;" src="@context.Item.RankName" />
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="" CellStyle="margin-left: 0;width: 10px" Filterable="false">
+                <CellTemplate>
+                    <img style='display: flex;justify-content: center;cursor: pointer; background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 25px; height: 25px;' src='@context.Item.PhotoUrl' />
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn Title="Ник">
+                <CellTemplate>
+                    @if (context.Item.Block == 1)
+                    {
+                        <MudLink Color="Color.Error" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                    }
+                    else
+                    {
+                        <MudLink Color="Color.Inherit" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                    }
+                </CellTemplate>
+            </TemplateColumn>
+            <PropertyColumn Property="x => x.SteamID" />
+            <PropertyColumn Property="x => x.Kills" Title="Убийства" HeaderStyle="width: 50px;" />
+            <PropertyColumn Property="x => x.Deaths" Title="Смерти" CellStyle="width: 50px" />
+            <PropertyColumn Property="x => x.Headshots" Title="Хедшоты" CellStyle="width: 50px" />
+            <PropertyColumn Property="x => x.KDR" CellStyle="width: 50px" />
+            <PropertyColumn Property="x => x.HSR" CellStyle="width: 50px" />
+            <PropertyColumn Property="x => x.AVG" CellStyle="width: 50px" />
+            <PropertyColumn Property="x => x.MMR" CellStyle="width: 50px" />
+            <PropertyColumn Property="x => x.MatchesTotal" Title="Матчи" CellStyle="width: 50px" />
+            <PropertyColumn Property="x => x.Wons" Title="Победы" CellStyle="width: 50px" />
+            <PropertyColumn Property="x => x.Losts" Title="Поражения" CellStyle="width: 50px" />
+            <PropertyColumn Property="x => x.Winrate" Title="Винрейт" CellStyle="width: 50px" />
+        </Columns>
+    </MudDataGrid>
+}
+else
+{
+    <MudDataGrid T=TotalPlayer Items="@dataSource" SortMode=SortMode.None Hover="true" Filterable=false QuickFilter=QuickFilter Virtualize="true" Height="81svh">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">TIER-2 игроки</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Поиск" Adornment="Adornment.Start" Immediate="true"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <Columns>
+            <TemplateColumn Title="" CellStyle="" Filterable="false">
+                <CellTemplate>
+                    <div style="display: flex;width: 100%;">
+                        <img style='margin-right: 10px;display: flex;justify-content: center;cursor: pointer; background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 25px; height: 25px;' src='@context.Item.PhotoUrl' />
+                        <img style="margin-right: 10px;display: flex;justify-content: center;width: 28px;" src="@context.Item.RankName" />
+                        <MudLink Style="text-wrap: nowrap;" Color="Color.Inherit" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                    </div>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+}
+
+@code {
+    private List<TotalPlayer> dataSource = new List<TotalPlayer>();
+    private string _searchString;
+    private bool isMobile = false;
+
+    private string GetUserLink(int id)
+    {
+        return $"/player/{id}";
+    }
+
+    protected override void OnInitialized()
+    {
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            isMobile = true;
+        }
+
+        base.OnInitialized();
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            JS.InvokeVoidAsync("showLoadBar");
+            var data = repo.Get().Where(x => x.Tier == 2).ToList();
+            for (int i = 0; i < data.Count; i++)
+            {
+                data[i].Position = i + 1;
+            }
+            dataSource.AddRange(data);
+            JS.InvokeVoidAsync("hideLoadBar");
+        }
+        base.OnAfterRender(firstRender);
+    }
+
+    private Func<TotalPlayer, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.SteamID.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}

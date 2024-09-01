@@ -1,0 +1,335 @@
+﻿@page "/adminplayer/{PlayerID}"
+@using CurrieTechnologies.Razor.SweetAlert2
+@using kTVCSSBlazor.Db.Models.Players
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@inject Db.Interfaces.IPlayers repo
+@inject Db.Interfaces.IAdmins admin
+@inject NavigationManager NavigationManager
+@inject SweetAlertService Swal
+
+<PageTitle>kTVCSS @@ Редактирование профиля игрока</PageTitle>
+
+@if (isAdmin)
+{
+    <MudPaper Class="px-4 pt-4">
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="12">
+                <MudText Typo=Typo.h4 Align="Align.Center">Редактирование профиля</MudText>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="4">
+                <MudTextField T="string" Counter="16" MaxLength="16" Disabled=@(!info.Vip) HelperText="@(!info.Vip ? "Для изменения логина необходима VIP привилегия" : "")" Immediate="true" Label="Логин" Variant="Variant.Text" @bind-Value="@profile.Login" />
+            </MudItem>
+        </MudGrid>
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="4">
+                <MudTextField T="string" InputType=InputType.Password Counter="32" MaxLength="32" Immediate="true" Label="Пароль" Variant="Variant.Text" @bind-Value="@profile.Password" />
+            </MudItem>
+        </MudGrid>
+        @if (showTG)
+        {
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string" @bind-Value="@profile.Telegram" Label="Telegram ID" HelperText="Задать можно только один раз. Телеграм нужен для покупки VIP привилегии." Variant="Variant.Text" />
+                    <MudLink Color="Color.Info" Target="_blank" Href="https://t.me/getmyid_bot">Узнать свой Telegram ID</MudLink>
+                </MudItem>
+            </MudGrid>
+        }
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="4">
+                <MudFileUpload style="align-items: center;" T="IBrowserFile" FilesChanged="UploadAvatar">
+                    <ButtonTemplate>
+                        <MudFab HtmlTag="label"
+                                Color="Color.Primary"
+                                Icon="@Icons.Material.Filled.Image"
+                                Label="Загрузить новый аватар (128x128 или 256x256)"
+                                for="@context.Id" />
+                    </ButtonTemplate>
+                </MudFileUpload>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="4">
+                <MudFileUpload style="align-items: center;" T="IBrowserFile" FilesChanged="UploadHeader">
+                    <ButtonTemplate>
+                        <MudFab HtmlTag="label"
+                                Color="Color.Secondary"
+                                Icon="@Icons.Material.Filled.Image"
+                                Label="Загрузить новую шапку профиля"
+                                for="@context.Id" />
+                    </ButtonTemplate>
+                </MudFileUpload>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Justify="Justify.Center">
+            <MudItem style="display: flex;justify-content: center;" xs="12" md="4">
+                <MudButtonGroup Color="Color.Primary" Variant="Variant.Outlined">
+                    <MudButton OnClick=RemoveAvatar StartIcon="@Icons.Material.Filled.RemoveCircle" IconColor="Color.Error">Удалить аватар</MudButton>
+                    <MudButton OnClick=RemoveHeader StartIcon="@Icons.Material.Filled.RemoveCircle" IconColor="Color.Error">Удалить шапку</MudButton>
+                </MudButtonGroup>
+            </MudItem>
+        </MudGrid>
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="4">
+                <MudTextField Counter="1328" MaxLength="1328" T="string" Label="Описание (поддерживает HTML форматирование)" Variant="Variant.Text" @bind-Value="@profile.Description" AutoGrow Lines="3" HelperText="Напишите что-нибудь о себе" />
+            </MudItem>
+        </MudGrid>
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="4">
+                <MudCheckBox Disabled="string.IsNullOrEmpty(info.TeamInfo.Name) ? false : true" @bind-Value="@profile.NeedTeam" Label="Ищу команду" Color="Color.Primary"></MudCheckBox>
+            </MudItem>
+        </MudGrid>
+        @if (profile.NeedTeam)
+        {
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="4">
+                    <MudSelect @bind-Value=@profile.PreferredRole HelperText="Предпочитаемая роль в команде" T="string" Label="Роль" Variant="Variant.Text">
+                        <MudSelectItem Value="@("Рифлер")" />
+                        <MudSelectItem Value="@("Энтрифрагер")" />
+                        <MudSelectItem Value="@("Снайпер")" />
+                        <MudSelectItem Value="@("Саппорт")" />
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string" Counter="10" MaxLength="10" @bind-Value="@profile.LastTeam" Label="Последняя команда" HelperText="Если Вы были в какой-то команде, укажите последнюю" Variant="Variant.Text" />
+                </MudItem>
+            </MudGrid>
+
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="4">
+                    <MudTextField T="string" Counter="30" MaxLength="30" @bind-Value="@profile.PrimeTime" Label="Прайм-тайм" HelperText="Укажите, в какое время Вы чаще всего можете играть" Variant="Variant.Text" />
+                </MudItem>
+            </MudGrid>
+
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="4">
+                    <MudSelect @bind-Value="@profile.StartPlayYear" HelperText="Укажите, с какого года Вы начали играть" T="string" Label="Год начала игры" Variant="Variant.Text">
+                        @for (int i = DateTime.Now.Year; i >= 2004; i--)
+                        {
+                            <MudSelectItem Value="@(i.ToString())" />
+                        }
+                    </MudSelect>
+                </MudItem>
+            </MudGrid>
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="4">
+                    <MudCheckBox @bind-Value="@profile.Microphone" Label="Наличие микрофона" Color="Color.Warning"></MudCheckBox>
+                </MudItem>
+            </MudGrid>
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="4">
+                    <MudCheckBox @bind-Value="@profile.TeamSpeak" Label="Наличие тимспика" Color="Color.Success"></MudCheckBox>
+                </MudItem>
+            </MudGrid>
+            <MudGrid Justify="Justify.Center">
+                <MudItem xs="12" md="4">
+                    <MudCheckBox @bind-Value="@profile.Discord" Label="Наличие дискорда" Color="Color.Info"></MudCheckBox>
+                </MudItem>
+            </MudGrid>
+        }
+
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="6">
+                <MudTextField @bind-Value=@ach T="string" Label="Достижения игрока" Variant="Variant.Outlined" Text="@ach" Lines="3" />
+            </MudItem>
+        </MudGrid>
+
+        <MudGrid Justify="Justify.Center">
+            <MudItem xs="12" md="4">
+                <MudButton OnClick="() => { Save(); }" FullWidth Variant="Variant.Outlined" StartIcon="@Icons.Material.Filled.Save" Color="Color.Primary">Сохранить</MudButton>
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+}
+
+@code {
+    private Profile profile { get; set; } = new Profile();
+    private PlayerInfo info { get; set; } = new PlayerInfo();
+    private string oldLogin { get; set; }
+    private string oldPassword { get; set; }
+    private bool showTG = true;
+    private bool isAdmin = false;
+    private string ach;
+
+    [Parameter]
+    public string PlayerID { get; set; }
+
+    private async Task RemoveAvatar()
+    {
+        profile.AvatarUrl = $"/images/logo_ktv.png";
+        await ShowAlert("Предупреждение", "Аватар был успешно удален! Не забудьте сохранить изменения", 3000, SweetAlertIcon.Info, null);
+        //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+        //snackbar.Add("Аватар был успешно удален! Не забудьте сохранить изменения!", Severity.Info);
+    }
+
+    private async Task RemoveHeader()
+    {
+        profile.HeaderUrl = $"";
+        await ShowAlert("Предупреждение", "Шапка была успешно удалена! Не забудьте сохранить изменения", 3000, SweetAlertIcon.Info, null);
+        //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+        //snackbar.Add("Шапка была успешно удалена! Не забудьте сохранить изменения!", Severity.Info);
+    }
+
+    private async Task UploadAvatar(IBrowserFile file)
+    {
+        if (!file.ContentType.Contains("png") && !file.ContentType.Contains("jpeg"))
+        {
+            await ShowAlert("Ошибка", "Загружаемый файл должен быть в формате png или jpg!", 3000, SweetAlertIcon.Error, null);
+            //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+            //snackbar.Add("Загружаемый файл должен быть в формате png!", Severity.Error);
+            return;
+        }
+
+        if (file.Size > 512000)
+        {
+            await ShowAlert("Ошибка", "Загружаемый файл должен быть менее 500 КБайт!", 3000, SweetAlertIcon.Error, null);
+            //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+            //snackbar.Add("Загружаемый файл должен быть менее 500 КБайт!", Severity.Error);
+            return;
+        }
+
+        string guid = Guid.NewGuid().ToString();
+
+        string fileName = Path.Combine("wwwroot", "images", "avatars", $"{guid}.png");
+
+        var memoryStream = new MemoryStream();
+        await file.OpenReadStream().CopyToAsync(memoryStream);
+
+        await using (var fs = new FileStream(fileName, FileMode.Create, FileAccess.Write))
+        {
+            memoryStream.WriteTo(fs);
+        }
+
+        profile.AvatarUrl = $"/images/avatars/{guid}.png";
+
+        await ShowAlert("Успех", "Новый аватар был успешно загружен! Не забудьте сохранить изменения!", 3000, SweetAlertIcon.Success, null);
+
+        //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+        //snackbar.Add("Новый аватар был успешно загружен! Не забудьте сохранить изменения!", Severity.Info);
+    }
+
+    private async Task UploadHeader(IBrowserFile file)
+    {
+        if (!file.ContentType.Contains("png") && !file.ContentType.Contains("jpeg"))
+        {
+            await ShowAlert("Ошибка", "Загружаемый файл должен быть в формате png или jpg!", 3000, SweetAlertIcon.Error, null);
+            //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+            //snackbar.Add("Загружаемый файл должен быть в формате png!", Severity.Error);
+            return;
+        }
+
+        if (file.Size > 512000)
+        {
+            await ShowAlert("Ошибка", "Загружаемый файл должен быть менее 500 КБайт!", 3000, SweetAlertIcon.Error, null);
+            //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+            //snackbar.Add("Загружаемый файл должен быть менее 500 КБайт!", Severity.Error);
+            return;
+        }
+
+        string guid = Guid.NewGuid().ToString();
+
+        string fileName = Path.Combine("wwwroot", "images", "playerheaders", $"{guid}.png");
+
+        var memoryStream = new MemoryStream();
+        await file.OpenReadStream().CopyToAsync(memoryStream);
+
+        await using (var fs = new FileStream(fileName, FileMode.Create, FileAccess.Write))
+        {
+            memoryStream.WriteTo(fs);
+        }
+
+        profile.HeaderUrl = $"/images/playerheaders/{guid}.png";
+
+        await ShowAlert("Успех", "Новая шапка профиля была успешно загружена! Не забудьте сохранить изменения!", 3000, SweetAlertIcon.Success, null);
+
+        //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
+        //snackbar.Add("Новая шапка профиля была успешно загружена! Не забудьте сохранить изменения!", Severity.Info);
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        profile = repo.GetProfile(Convert.ToInt32(PlayerID));
+        info = repo.GetPlayerInfo(Convert.ToInt32(PlayerID));
+
+        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+
+        if (isAdmin)
+        {
+            var a = info.NormalAchiviments;
+
+            foreach (var item in a)
+            {
+                ach += $"{item.Place}-{item.Name}\n";
+            }
+        }
+
+        if (!string.IsNullOrEmpty(profile.Telegram))
+        {
+            showTG = false;
+        }
+
+        oldLogin = profile.Login;
+        oldPassword = profile.Password;
+
+        if (!string.IsNullOrEmpty(info.TeamInfo.Name))
+        {
+            profile.NeedTeam = false;
+        }
+    }
+
+    private async Task Save()
+    {
+        string result = repo.SaveProfile(profile, Convert.ToInt32(PlayerID));
+
+        repo.SavePlayerAchiviments(Convert.ToInt32(PlayerID), ach);
+
+        string trypass = profile.Password;
+        if (profile.Password.Length != 32)
+        {
+            trypass = Tools.CreateMD5(profile.Password);
+        }
+
+        if (result == "OK")
+        {
+            await ShowAlert("", "Профиль обновлен", 2000, SweetAlertIcon.Success, async () =>
+                {
+                    if (profile.Login != oldLogin || trypass != oldPassword)
+                    {
+                        await AuthProvider.LogoutAsync();
+                        NavigationManager.NavigateTo($"/player/{PlayerID}", true);
+                    }
+                    else
+                    {
+                        NavigationManager.NavigateTo($"/player/{PlayerID}", false);
+                    }
+                });
+        }
+        else
+        {
+            await ShowAlert("Ошибка", result, 5000, SweetAlertIcon.Error, null);
+        }
+    }
+
+    async Task ShowAlert(string caption, string text, int time, SweetAlertIcon icon,  Func<Task> customCallback)
+    {
+        var options = new SweetAlertOptions
+            {
+                TimerProgressBar = true,
+                Timer = time,
+                Title = caption,
+                Text = text,
+                Icon = icon,
+                WillClose = new SweetAlertCallback(async () =>
+                {
+                    await customCallback();
+                })
+            };
+
+        await Swal.FireAsync(options);
+    }
+}

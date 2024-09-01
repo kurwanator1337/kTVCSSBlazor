@@ -1,0 +1,94 @@
+﻿@using kTVCSSBlazor.Db.Models.Players
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@using kTVCSSBlazor.Components.Pages.Players.ProfileItems
+
+<MudItem xs="12" sm="@FieldWidth">
+    <MudPaper>
+        <MudList>
+            <div class="mud-list-item mud-list-item-gutters">
+                <MudTooltip Placement="Placement.Right" Style="background-color: #19191e" Class="pa-4 ma-4">
+                    <ChildContent>
+                        <MudStack Row>
+                            <MudImage Width=40 Src="@player.RankUrl"></MudImage>
+                            <MudText Style="display: flex; align-items: center" Class="mud-list-item-text">@player.MainInfo.MMR MMR</MudText>
+                        </MudStack>
+                    </ChildContent>
+                    <TooltipContent>
+                        @if (player.Ranks.Count == 3)
+                        {
+                            <MudTimeline TimelinePosition="TimelinePosition.Top" TimelineOrientation="TimelineOrientation.Horizontal">
+                                <MudTimelineItem TimelineAlign="TimelineAlign.Default" Color="Color.Error">
+                                    <MudText Typo="Typo.button">@player.Ranks[0].Name</MudText>
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@(player.Ranks[0].Min) - @(player.Ranks[0].Max)</MudText>
+                                </MudTimelineItem>
+                                <MudTimelineItem TimelineAlign="TimelineAlign.Default" Color="Color.Info">
+                                    <MudText Typo="Typo.button">@player.Ranks[1].Name</MudText>
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@player.MainInfo.MMR</MudText>
+                                </MudTimelineItem>
+                                <MudTimelineItem TimelineAlign="TimelineAlign.Default" Color="Color.Success">
+                                    <MudText Typo="Typo.button">@player.Ranks[2].Name</MudText>
+                                    <MudText Typo="Typo.body2" Class="mud-text-secondary">@(player.Ranks[2].Min) - @(player.Ranks[2].Max)</MudText>
+                                </MudTimelineItem>
+                            </MudTimeline>
+                        }
+                        @if (player.Ranks.Count == 0)
+                        {
+                            if (player.MainInfo.Id != AuthProvider.CurrentUser.Id)
+                            {
+                                <MudText Color="Color.Info" Typo="Typo.button">Игрок достиг максимального ранга!</MudText>
+                            }
+                            else
+                            {
+                                <MudText Color="Color.Info" Typo="Typo.button">Вы достигли максимального ранга!</MudText>
+                            }
+                        }
+                        @if (player.Ranks.Count == 2)
+                        {
+                            if (player.MainInfo.RankName == "На калибровке")
+                            {
+                                <MudText Color="Color.Error" Typo="Typo.button">До конца калибровки матчей: @(10 - player.MainInfo.MatchesTotal)</MudText>
+                            }
+                            else
+                            {
+                                <MudTimeline TimelinePosition="TimelinePosition.Top" TimelineOrientation="TimelineOrientation.Horizontal">
+                                    <MudTimelineItem TimelineAlign="TimelineAlign.Default" Color="Color.Info">
+                                        <MudText Typo="Typo.button">@player.Ranks[0].Name</MudText>
+                                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@player.MainInfo.MMR</MudText>
+                                    </MudTimelineItem>
+                                    <MudTimelineItem TimelineAlign="TimelineAlign.Default" Color="Color.Success">
+                                        <MudText Typo="Typo.button">@player.Ranks[1].Name</MudText>
+                                        <MudText Typo="Typo.body2" Class="mud-text-secondary">@(player.Ranks[1].Min) - @(player.Ranks[1].Max)</MudText>
+                                    </MudTimelineItem>
+                                </MudTimeline>
+                            }
+                        }
+                    </TooltipContent>
+                </MudTooltip>
+            </div>
+            <MudDivider DividerType="DividerType.Inset"/>
+            <MudListItem IconColor=Color.Info Avatar="@Icons.Material.Filled.CleanHands">
+                Порядочность: @player.BanMultiplier.ToString()
+            </MudListItem>
+            <MudDivider DividerType="DividerType.Inset"/>
+            <MudListItem IconColor=Color.Success Avatar="@Icons.Material.Filled.Gamepad">
+                @player.Role
+            </MudListItem>
+            <MudDivider DividerType="DividerType.Inset"/>
+            <MudListItem Avatar="@Icons.Custom.Brands.Steam">
+                @player.MainInfo.SteamID
+            </MudListItem>
+        </MudList>
+    </MudPaper>
+</MudItem>
+
+@code {
+    [Parameter] public PlayerInfo player { get; set; }
+
+    [Parameter] public int FieldWidth { get; set; }
+
+    [Parameter] public List<ChartSeries> Series { get; set; }
+
+    [Parameter] public List<string> XAxisLabels { get; set; }
+
+    public ChartOptions Options = new ChartOptions();
+}

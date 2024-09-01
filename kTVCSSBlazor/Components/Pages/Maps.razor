@@ -1,0 +1,73 @@
+﻿@page "/maps"
+@using CurrieTechnologies.Razor.SweetAlert2
+@using Dapper
+@using kTVCSSBlazor.Db
+@using Microsoft.AspNetCore.SignalR.Client
+@using kTVCSSBlazor.Db.Models.Highlights
+@using kTVCSSBlazor.Db.Models.Players
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@inject SweetAlertService Swal
+@inject Context db
+
+<PageTitle>kTVCSS @@ Карты</PageTitle>
+
+
+<MudGrid Justify="Justify.Center">
+    <MudItem xs="12" md="8">
+        <MudAlert Style="margin-bottom: 1%" Severity="Severity.Info">Здесь представлены все основные карты, использующиеся на миксах и турнирах</MudAlert>
+        <MudAlert Style="margin-bottom: 1%" Severity="Severity.Warning">Поместите скачанную карту по пути, например C:\CSSv34_ClientMod\cstrike\maps</MudAlert>
+
+        <MudSimpleTable Dense Style="overflow-x: auto;">
+            <thead>
+                <tr style="text-align: center;">
+
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in maps)
+                {
+                    <tr style="width: 50%;margin:auto">
+                        <td style="text-align: center;">@row.Map</td>
+                        <td><MudFab Style="" Disabled="@disabled" Size="Size.Small" OnClick="@(() => { DownloadMap(row.Map); })" Color="Color.Primary" StartIcon="@Icons.Material.Filled.Download" /></td>
+                    </tr>
+                }
+            </tbody>
+        </MudSimpleTable>
+    </MudItem>
+</MudGrid>
+
+@code {
+    List<dynamic> maps = new List<dynamic>();
+    private bool disabled = false;
+
+    private async Task DownloadMap(string mapName)
+    {
+        disabled = true;
+
+        var filePath = Path.Combine("wwwroot", "maps", mapName + ".bsp");
+
+        if (File.Exists(filePath))
+        {
+            byte[] fileBytes = File.ReadAllBytes(filePath);
+
+            using (var outputStream = new MemoryStream(fileBytes))
+            {
+                using var streamRef = new DotNetStreamReference(stream: outputStream);
+
+                await JS.InvokeVoidAsync("downloadFileFromStream", mapName + ".bsp", streamRef);
+
+                disabled = false;
+
+                InvokeAsync(StateHasChanged);
+            }
+        }
+    }
+
+    protected override Task OnInitializedAsync()
+    {
+        maps = db.Db.Query("SELECT MAP as Map FROM MixesMaps").ToList();
+
+        return base.OnInitializedAsync();
+    }
+}

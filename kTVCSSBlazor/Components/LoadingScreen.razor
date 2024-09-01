@@ -1,0 +1,41 @@
+@if (isLoaded)
+{
+    @ChildContent
+}
+else
+{
+    <div class="top">
+        <div style="justify-content: center;display: flex;">
+            <img style="height: 50%;width:50%" src="/images/logo_ktv.png" />
+        </div>
+    </div>
+}
+
+<style>
+    .top {
+        overflow: hidden;
+        background-color: #1e1f25;
+        display: flex;
+        width: 100vw;
+        height: 100vh;
+        margin: auto;
+        justify-content: center;
+        align-content: center;
+        align-items: center;
+    }
+
+
+</style>
+
+@code {
+    bool isLoaded;
+
+    [Parameter]
+    public RenderFragment ChildContent { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        await Task.Delay(4000); // TODO actual initialization job
+        isLoaded = false;
+    }
+}

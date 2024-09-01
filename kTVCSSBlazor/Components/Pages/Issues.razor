@@ -1,0 +1,73 @@
+﻿@page "/issues"
+@using Octokit
+
+<MudText Align=Align.Center Typo="Typo.h3">Открытые и закрытые проблемы/предложения</MudText>
+
+@if (issues is not null)
+{
+    <MudGrid Style="margin-top: 2%">
+        <MudItem xs="12" sm="6">
+            <MudStack>
+                @foreach (var issue in issues.Where(x => x.State == ItemState.Open))
+                {
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Открыта проблема @issue.CreatedAt.DateTime.ToShortDateString() (@issue.User.Login)</MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudIconButton Icon="@Icons.Material.Filled.Lightbulb" Color="Color.Error" />
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudText>@issue.Title</MudText>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudStack>
+        </MudItem>
+        <MudItem xs="12" sm="6">
+            <MudStack>
+                @foreach (var issue in issues.Where(x => x.State == ItemState.Closed))
+                {
+                    <MudCard>
+                        <MudCardHeader>
+                            <CardHeaderContent>
+                                <MudText Typo="Typo.h6">Закрыта проблема @issue.ClosedAt.Value.DateTime.ToShortDateString() (@issue.User.Login)</MudText>
+                            </CardHeaderContent>
+                            <CardHeaderActions>
+                                <MudIconButton Icon="@Icons.Material.Filled.Lightbulb" Color="Color.Success" />
+                            </CardHeaderActions>
+                        </MudCardHeader>
+                        <MudCardContent>
+                            <MudText>@issue.Title</MudText>
+                        </MudCardContent>
+                    </MudCard>
+                }
+            </MudStack>
+        </MudItem>
+    </MudGrid>
+}
+
+@code {
+    private IReadOnlyList<Issue> issues;
+    private string owner = "kurwanator1337";
+    private string repo = "kTVCSSBlazor";
+    private string token = "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";
+    private GitHubClient client;
+
+    protected override async Task OnInitializedAsync()
+    {
+        client = new GitHubClient(new ProductHeaderValue("MyApp"))
+            {
+                Credentials = new Credentials(token) // Аутентификация через личный токен
+            };
+
+        var issueRequest = new RepositoryIssueRequest
+            {
+                State = ItemStateFilter.All
+            };
+
+        issues = await client.Issue.GetAllForRepository(owner, repo, issueRequest);
+    }
+}

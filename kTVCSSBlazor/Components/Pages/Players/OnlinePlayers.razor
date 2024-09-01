@@ -1,0 +1,345 @@
+﻿@page "/onlineplayers"
+@using Blazored.Toast.Services
+@using CurrieTechnologies.Razor.SweetAlert2
+@using Microsoft.AspNetCore.SignalR.Client
+@using kTVCSSBlazor.Data
+@using kTVCSSBlazor.Db.Interfaces
+@using kTVCSSBlazor.Db.Models;
+@using kTVCSSBlazor.Db.Models.Players
+@using kTVCSSBlazor.Hubs
+@inject Db.Interfaces.IPlayers repo
+@inject Db.Interfaces.IAdmins admin
+@inject IJSRuntime JS
+@inject IHttpContextAccessor httpContextAccessor
+@inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
+@inject HubConnection hubConnection
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject NavigationManager nav
+@inject SweetAlertService Swal
+@inject IToastService toastService
+@inject IIM msgc
+
+<PageTitle>kTVCSS @@ Онлайн игроки</PageTitle>
+
+<kTVCSSBlazor.Components.Layout.Bar />
+
+@if (!isMobile)
+{
+    @if (isVip)
+    {
+        <MudDataGrid T=TotalPlayer Items="@dataSource" SortMode=SortMode.None Hover="true" Filterable=false QuickFilter=QuickFilter Virtualize="true" Height="81svh">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Онлайн игроки</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Поиск" Adornment="Adornment.Start" Immediate="true"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="x => x.Position" Title="" CellStyle="margin-left: 0;width: 5px" />
+                <TemplateColumn Title="" CellStyle="margin-left: 0;width: 15px" Filterable="false">
+                    <CellTemplate>
+                        <img style="display: flex;justify-content: center;width: 28px;" src="@context.Item.RankName" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="" CellStyle="margin-left: 0;width: 10px" Filterable="false">
+                    <CellTemplate>
+                        <img style='display: flex;justify-content: center;cursor: pointer; background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 25px; height: 25px;' src='@context.Item.PhotoUrl' />
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Ник">
+                    <CellTemplate>
+                        <MudLink Color="Color.Inherit" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.SteamID" />
+                <PropertyColumn Property="x => x.KDR" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.HSR" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.AVG" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.MMR" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.MatchesTotal" Title="Матчи" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.Winrate" Title="Винрейт" CellStyle="width: 50px" />
+                <TemplateColumn CellClass="d-flex-row justify-end">
+                    <CellTemplate>
+                        @if (kTVCSSHub.Mixes.Where(x => x.MixPlayers.Where(x => x.SteamId == context.Item.SteamID).Any()).Any())
+                        {
+                            <MudButton OnClick="@(() => { nav.NavigateTo($"/mix/{GetMixGuidByPlayer(context.Item.SteamID)}"); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Info">Играет микс</MudButton>
+                        }
+                        else
+                        {
+                            @if (context.Item.IsOnline)
+                            {
+                                try
+                                {
+                                    @if (kTVCSSHub.SearchUsers.Where(x => x.Value.Id == context.Item.Id).Any())
+                                    {
+                                        <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">В поиске</MudButton>
+                                    }
+                                    else
+                                    {
+                                        <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Success">В сети</MudButton>
+                                    }
+                                }
+                                catch (Exception ex)
+                                {
+                                    <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">@ex.Message</MudButton>
+                                }
+                            }
+                            else
+                            {
+                                <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Surface">Не в сети</MudButton>
+                            }
+                        }
+
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn CellClass="d-flex-row justify-end">
+                    <CellTemplate>
+                        @if (Id != context.Item.Id)
+                        {
+                            @if (!repo.IsFriend(Id, context.Item.Id))
+                            {
+                                <MudButton OnClick="@(() => { repo.AddFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Success">Добавить в друзья</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton OnClick="@(() => { repo.RemoveFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">Удалить из друзей</MudButton>
+                            }
+                        }
+                        else
+                        {
+                            <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Warning">Это Вы</MudButton>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn CellClass="d-flex-row justify-end">
+                    <CellTemplate>
+                        <MudButton OnClick="@(async () => { await SendPrivateMessage(context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Info">Написать</MudButton>
+                       
+                        
+                            
+                    </CellTemplate>
+                </TemplateColumn>
+                @if (isAdmin)
+                {
+                    <TemplateColumn CellClass="d-flex-row justify-end">
+                        <CellTemplate>
+                            <MudButton OnClick="@(async () => { await hubConnection.InvokeAsync("DisconnectMe", context.Item); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">Отключить</MudButton>
+                        </CellTemplate>
+                    </TemplateColumn>
+                }
+            </Columns>
+        </MudDataGrid>
+    }
+    else
+    {
+        <MudDataGrid T=TotalPlayer Items="@dataSource" SortMode=SortMode.None Hover="true" Filterable=false QuickFilter=QuickFilter Virtualize="true" Height="81svh">
+            <ToolBarContent>
+                <MudText Typo="Typo.h6">Онлайн игроки</MudText>
+                <MudSpacer />
+                <MudTextField @bind-Value="_searchString" Placeholder="Поиск" Adornment="Adornment.Start" Immediate="true"
+                              AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+            </ToolBarContent>
+            <Columns>
+                <PropertyColumn Property="x => x.Position" Title="" CellStyle="margin-left: 0;width: 5px" />
+                <TemplateColumn Title="" CellStyle="margin-left: 0;width: 15px" Filterable="false">
+                    <CellTemplate>
+                        <img style="display: flex;justify-content: center;width: 28px;" src="@context.Item.RankName" />
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="" CellStyle="margin-left: 0;width: 10px" Filterable="false">
+                    <CellTemplate>
+                        <img style='display: flex;justify-content: center;cursor: pointer; background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 25px; height: 25px;' src='@context.Item.PhotoUrl' />
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn Title="Ник">
+                    <CellTemplate>
+                        <MudLink Color="Color.Inherit" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                    </CellTemplate>
+                </TemplateColumn>
+                <PropertyColumn Property="x => x.SteamID" />
+                <PropertyColumn Property="x => x.KDR" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.HSR" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.AVG" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.MMR" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.MatchesTotal" Title="Матчи" CellStyle="width: 50px" />
+                <PropertyColumn Property="x => x.Winrate" Title="Винрейт" CellStyle="width: 50px" />
+                <TemplateColumn CellClass="d-flex-row justify-end">
+                    <CellTemplate>
+                        @if (Id != context.Item.Id)
+                        {
+                            @if (!repo.IsFriend(Id, context.Item.Id))
+                            {
+                                <MudButton OnClick="@(() => { repo.AddFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Success">Добавить в друзья</MudButton>
+                            }
+                            else
+                            {
+                                <MudButton OnClick="@(() => { repo.RemoveFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">Удалить из друзей</MudButton>
+                            }
+                        }
+                        else
+                        {
+                            <MudButton Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Warning">Это Вы</MudButton>
+                        }
+                    </CellTemplate>
+                </TemplateColumn>
+                <TemplateColumn CellClass="d-flex-row justify-end">
+                    <CellTemplate>
+                        <MudButton OnClick="@(async () => { await SendPrivateMessage(context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Info">Написать</MudButton>
+                    </CellTemplate>
+                </TemplateColumn>
+            </Columns>
+        </MudDataGrid>
+    }
+}
+else 
+{
+    <MudDataGrid T=TotalPlayer Items="@dataSource" SortMode=SortMode.None Hover="true" Filterable=false QuickFilter=QuickFilter Virtualize="true" Height="81svh">
+        <ToolBarContent>
+            <MudText Typo="Typo.h6">Онлайн игроки</MudText>
+            <MudSpacer />
+            <MudTextField @bind-Value="_searchString" Placeholder="Поиск" Adornment="Adornment.Start" Immediate="true"
+                          AdornmentIcon="@Icons.Material.Filled.Search" IconSize="Size.Medium" Class="mt-0"></MudTextField>
+        </ToolBarContent>
+        <Columns>
+            <TemplateColumn Title="" CellStyle="" Filterable="false">
+                <CellTemplate>
+                    <div style="display: flex;width: 100%;">
+                        <img style='margin-right: 10px;display: flex;justify-content: center;cursor: pointer; background-repeat: no-repeat; background-position: 50%; border-radius: 50%; width: 25px; height: 25px;' src='@context.Item.PhotoUrl' />
+                        <img style="margin-right: 10px;display: flex;justify-content: center;width: 28px;" src="@context.Item.RankName" />
+                        <MudLink Style="text-wrap: nowrap;" Color="Color.Inherit" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                    </div>
+                </CellTemplate>
+            </TemplateColumn>
+            <TemplateColumn CellClass="d-flex-row justify-end">
+                <CellTemplate>
+                    <MudButton OnClick="@(async () => { await SendPrivateMessage(context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Info">Написать</MudButton>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+}
+
+@code {
+    private List<TotalPlayer> dataSource = new List<TotalPlayer>();
+    private string _searchString;
+    private int Id { get; set; }
+    private User? me = new();
+    private string connectionID = null;
+    private bool isMobile = false;
+    private bool isVip = false;
+    private bool isAdmin = false;
+
+    private string GetUserLink(int id)
+    {
+        return $"/player/{id}";
+    }
+
+    private async Task SendPrivateMessage(int user)
+    {
+        var options = new SweetAlertOptions
+            {
+                Title = "Напишите Ваше сообщение",
+                Input = SweetAlertInputType.Text,
+                InputValue = $""
+            };
+
+        var result = await Swal.FireAsync(options);
+
+        if (result.Value is not null)
+        {
+            if (result.Value == "")
+            {
+                return;
+            }
+
+            await hubConnection.SendAsync("SendDM", me.Username, me.Id, user, result.Value);
+
+            msgc.SendMessage(me.Id, user, result.Value);
+
+            toastService.ShowSuccess($"Сообщение было отправлено!");
+        }
+    }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            isMobile = true;
+        }
+
+        me = await AuthProvider.GetUserFromDataBase();
+
+        Id = AuthProvider.CurrentUser.Id;
+
+        isVip = await repo.IsVip(me.SteamId);
+        isAdmin = await admin.IsAdmin(me.SteamId);
+
+        connectionID = hubConnection.State == HubConnectionState.Connected ? hubConnection.ConnectionId : null;
+
+        if (connectionID != null)
+        {
+            kTVCSSHub.OnlinePageUsers.TryAdd(connectionID, 0);
+            nav.LocationChanged += OnLocationChanged;
+        }
+        else
+        {
+            SweetAlertOptions options = new();
+            options.TimerProgressBar = true;
+            options.Timer = 7000;
+            options.Title = "Подключение к сети kTVCSS";
+            options.Text = "Вы либо еще не подключены к сети проекта, либо только подключаетесь, поэтому функционал данной страницы пока не доступен полностью. После подключения к сети, переключите эту страницу, чтобы все было, как надо!";
+            options.Icon = SweetAlertIcon.Warning;
+            Swal.FireAsync(options);
+        }
+
+        hubConnection.On("RefreshOnline", () =>
+            {
+                JS.InvokeVoidAsync("showLoadBar");
+                dataSource.Clear();
+                dataSource.AddRange(repo.GetOnlinePlayers());
+                JS.InvokeVoidAsync("hideLoadBar");
+
+                InvokeAsync(StateHasChanged);
+            });
+    }
+
+    private void OnLocationChanged(object sender, LocationChangedEventArgs e)
+    {
+        if (connectionID != null)
+        {
+            kTVCSSHub.OnlinePageUsers.TryRemove(connectionID, out int val);
+        }
+    }
+
+    private string GetMixGuidByPlayer(string steam)
+    {
+        var mix = kTVCSSHub.Mixes.Where(x => x.MixPlayers.Where(x => x.SteamId == steam).Any()).FirstOrDefault().Guid.ToString();
+        return mix;
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            JS.InvokeVoidAsync("showLoadBar");
+            dataSource.AddRange(repo.GetOnlinePlayers());
+            JS.InvokeVoidAsync("hideLoadBar");
+        }
+        base.OnAfterRender(firstRender);
+    }
+
+    private Func<TotalPlayer, bool> QuickFilter => x =>
+    {
+        if (string.IsNullOrWhiteSpace(_searchString))
+            return true;
+
+        if (x.Name.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        if (x.SteamID.Contains(_searchString, StringComparison.OrdinalIgnoreCase))
+            return true;
+
+        return false;
+    };
+}

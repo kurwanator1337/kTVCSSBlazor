@@ -1,0 +1,27 @@
+﻿@page "/articles"
+@inject IConfiguration config
+@using Dapper
+@using Microsoft.Data.SqlClient
+@using MudBlazor
+
+<PageTitle>kTVCSS @@ Новости проекта</PageTitle>
+
+<MudContainer MaxWidth="MaxWidth.Large" Class="mt-4">
+    
+</MudContainer>
+
+@code {
+    private List<Db.Models.Arcticles.Article> newsList = new();
+
+    protected override async Task OnInitializedAsync()
+    {
+        using (var sql = new SqlConnection(config.GetConnectionString("db")))
+        {
+            sql.Open();
+
+            var arcticles = sql.Query<Db.Models.Arcticles.Article>("SELECT * FROM Feed ORDER BY DATETIME DESC");
+
+            newsList.AddRange(arcticles);
+        }
+    }
+}

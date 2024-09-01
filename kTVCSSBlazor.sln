@@ -1,0 +1,36 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.8.34330.188
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "kTVCSSBlazor", "kTVCSSBlazor\kTVCSSBlazor.csproj", "{A17A1C47-C8CC-4FE9-A752-DA545D9E4D83}"
+EndProject
+Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution Items", "{D8F05846-93A3-4855-B105-5BCAF45E626F}"
+	ProjectSection(SolutionItems) = preProject
+		.editorconfig = .editorconfig
+	EndProjectSection
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "CurrieTechnologies.Blazor.SweetAlert2", "..\Blazor.SweetAlert2-master\CurrieTechnologies.Blazor.SweetAlert2\CurrieTechnologies.Blazor.SweetAlert2.csproj", "{EDCFFE19-69C1-4C29-A0EA-9D49A4230A56}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{A17A1C47-C8CC-4FE9-A752-DA545D9E4D83}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{A17A1C47-C8CC-4FE9-A752-DA545D9E4D83}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{A17A1C47-C8CC-4FE9-A752-DA545D9E4D83}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{A17A1C47-C8CC-4FE9-A752-DA545D9E4D83}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EDCFFE19-69C1-4C29-A0EA-9D49A4230A56}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EDCFFE19-69C1-4C29-A0EA-9D49A4230A56}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EDCFFE19-69C1-4C29-A0EA-9D49A4230A56}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EDCFFE19-69C1-4C29-A0EA-9D49A4230A56}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {E45841D8-596B-4D81-BAF7-EC9B31F86F6E}
+	EndGlobalSection
+EndGlobal

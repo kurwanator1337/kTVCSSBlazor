@@ -1,0 +1,357 @@
+﻿@page "/team/{TeamID}"
+@using CurrieTechnologies.Razor.SweetAlert2
+@using kTVCSSBlazor.Db.Models.Teams
+@inject kTVCSSAuthenticationStateProvider AuthProvider
+@inject IJSRuntime JS
+@inject Db.Interfaces.ITeams repo
+@inject SweetAlertService Swal
+@inject IDialogService DialogService
+@inject IHttpClientFactory ClientFactory
+@inject NavigationManager NavigationManager
+@inject IHttpContextAccessor httpContextAccessor
+@inject Db.Interfaces.IAdmins admin
+
+<kTVCSSBlazor.Components.Layout.Bar display="block" />
+<PageTitle>kTVCSS @@ Профиль команды @data.Info.Name</PageTitle>
+
+<MudGrid Style="margin-bottom: 1%" Justify="Justify.Center">
+    <MudItem xs="12" md="12">
+        <MudCard Style="position: relative;width:100%">
+            <div style="margin: auto;width: 128px;height: 128px;">
+                <div>
+                    <img style="margin-top: 5%;box-shadow: 1px 1px 3px #000, 1px -1px 7px #000, -1px 1px 4px #000, 1px 1px 0 #000; background-repeat: no-repeat; background-position: 50%;" src="@data.AvatarUrl" class="mud-avatar" width="128" height="128">
+                </div>
+            </div>
+
+            <MudCardMedia Image="null" Height="0" />
+
+            <MudCardContent>
+                <MudText Align=Align.Center Typo="Typo.h3">@data.Info.Name</MudText>
+                <MudStack Wrap=Wrap.Wrap Justify=Justify.SpaceAround AlignItems=AlignItems.Center Row="true">
+                    <MudText>
+                        <MudText Align=Align.Center Typo="Typo.h6">Позиция в рейтинге: @data.Info.Position</MudText>
+                        <MudText Align=Align.Center Typo="Typo.h6">Тир команды: @data.Info.Tier</MudText>
+                        <MudText Align=Align.Center Typo="Typo.h6">Рейтинг команды: @data.Info.Rating</MudText>
+                        <MudText Align=Align.Center Typo="Typo.h6">Всего сыграно матчей: @data.Info.MatchesPlayed</MudText>
+                        <MudText Align=Align.Center Typo="Typo.h6">Процент побед: @(Math.Round(data.Info.MatchesWins / (double)data.Info.MatchesPlayed, 2) * 100)%</MudText>
+                        <MudText Align=Align.Center Typo="Typo.h6">Дата создания: @data.CreationDate</MudText>
+                        <MudText Align=Align.Center Typo="Typo.body2">@data.Info.Description</MudText>
+                    </MudText>
+                    @if (data.Achiviments.Count > 0)
+                    {
+                        <MudText>
+                            <MudText Align=Align.Center Typo="Typo.h6">Достижения команды:</MudText>
+                            @foreach (var ach in data.Achiviments)
+                            {
+                                if (ach.Place == 1)
+                                {
+                                    <MudText Align=Align.Center Typo="Typo.h6">🥇 @ach.Name</MudText>
+                                }
+                                if (ach.Place == 2)
+                                {
+                                    <MudText Align=Align.Center Typo="Typo.h6">🥈 @ach.Name</MudText>
+                                }
+                                if (ach.Place == 3)
+                                {
+                                    <MudText Align=Align.Center Typo="Typo.h6">🥉 @ach.Name</MudText>
+                                }
+                            }
+                        </MudText>
+                    }
+                </MudStack>
+            </MudCardContent>
+            <MudCardActions Style="justify-content: center;">
+                @if (isAdmin)
+                {
+                    if (data.Info.BlockEdit == 0)
+                    {
+                        <MudButton OnClick="() => { admin.BlockTeam(Convert.ToInt32(TeamID), AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Lock" Color="Color.Secondary">Заблокировать состав</MudButton>
+                    }
+                    else
+                    {
+                        <MudButton OnClick="() => { admin.UnBlockTeam(Convert.ToInt32(TeamID), AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.LockOpen" Color="Color.Success">Разблокировать состав</MudButton>
+                    }
+                }
+                @if (AuthProvider.CurrentUser.SteamId == data.Info.CapSteamID)
+                {
+                    <MudButton OnClick="() => { OpenTeamEdit(); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Edit" Color="Color.Primary">Редактировать профиль</MudButton>
+                    <MudButton OnClick="DeleteTeam" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Delete" Color="Color.Primary">Удалить команду</MudButton>
+                }
+                @if (data.Members.Where(x => x.SteamID == AuthProvider.CurrentUser.SteamId).Any())
+                {
+                    @if (AuthProvider.CurrentUser.SteamId != data.Info.CapSteamID)
+                    {
+                        <MudButton OnClick="async () => { await LeaveTeam(); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.ExitToApp" Color="Color.Primary">Покинуть команду</MudButton>
+                    }
+                }
+                @if (isAdmin)
+                {
+                    <MudButton OnClick="() => { OpenTeamEditAsAdmin(); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Edit" Color="Color.Primary">Редактировать профиль (admin)</MudButton>
+                }
+            </MudCardActions>
+        </MudCard>
+    </MudItem>
+</MudGrid>
+
+@* <div class="d-flex flex-column" style="width: 100%;justify-content: center;align-items: center;">
+    <MudImage Src="@data.AvatarUrl" ObjectFit="ObjectFit.Contain" Width=150 ObjectPosition=ObjectPosition.Center Class="rounded-lg" />
+
+    <MudText Style="margin-bottom: 2%" Align=Align.Center Typo="Typo.h3">@data.Info.Name</MudText>
+</div> *@
+
+<MudGrid Style="margin-bottom: 1%" Justify="Justify.Center">
+    <MudItem xs="12" md="12">
+        <MudStack Wrap=Wrap.Wrap Justify=Justify.Center AlignItems=AlignItems.Center Row="true">
+            @foreach (var player in data.Members)
+            {
+                <MudCard Class="rounded-xl" Style="@memberCardMargin">
+                    <MudCardMedia Class="rounded-circle" Style="margin-top: 2%;margin-left: auto; margin-right: auto;width: 100px;display: flex;" Image="@player.PhotoUrl" Height="@memberCardHeight" />
+                    <MudCardContent>
+                        <MudText Style="overflow:auto" Align="Align.Center" Typo="Typo.h5">@player.Name.Replace(data.Info.Name, "")</MudText>
+                        <MudText Align="Align.Center" Typo="Typo.body2">@player.SteamID</MudText>
+                        @if (player.SteamID == data.Info.CapSteamID)
+                        {
+                            <MudText Color=Color.Error Align="Align.Center" Typo="Typo.body2">Капитан команды</MudText>
+                        }
+                        @if (player.SteamID != data.Info.CapSteamID)
+                        {
+                            <MudText Align="Align.Center" Typo="Typo.body2">Вступил @player.EntryDate</MudText>
+                        }
+                        <MudText Align="Align.Center" Typo="Typo.body2">KDR: @player.KDR</MudText>
+                        <MudText Align="Align.Center" Typo="Typo.body2">AVG: @player.AVG</MudText>
+                        <MudText Align="Align.Center" Typo="Typo.body2">MMR: @player.MMR</MudText>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <div style="display: flex;justify-content:center;align-items:center;width: 100%;">
+                            <MudButton Href="@string.Concat("/player/", player.Id.ToString())" Variant="Variant.Text" Color="Color.Primary">Профиль</MudButton>
+                            @if (AuthProvider.CurrentUser.SteamId == data.Info.CapSteamID)
+                            {
+                                @if (data.Info.CapSteamID != player.SteamID)
+                                {
+                                    <MudButton OnClick="@(() => { KickPlayer(player.SteamID); })" Variant="Variant.Text" Color="Color.Primary">Выгнать</MudButton>
+                                }
+                            }
+                            @if (isAdmin)
+                            {
+                                <MudButton OnClick="@(() => { KickPlayer(player.SteamID); })" Variant="Variant.Text" Color="Color.Primary">Выгнать</MudButton>
+                            }
+                        </div>
+                    </MudCardActions>
+                </MudCard>
+            }
+        </MudStack>
+    </MudItem>
+</MudGrid>
+
+@if (isMobile)
+{
+    <MudDataGrid T="TeamMatch" RowClick=OnRowClick Style="background-color: #1e1f25;" RowStyleFunc="@_rowStyleFuncMobile" Bordered=false Items="@data.Matches" FilterCaseSensitivity=DataGridFilterCaseSensitivity.Ignore Virtualize="true" Hover="true" FilterMode=DataGridFilterMode.ColumnFilterMenu Height="88svh" Filterable="false" SortMode="@SortMode.None" Groupable="false">
+        <Columns>
+            <PropertyColumn Property="x => x.DateTime" Title="Дата" />
+            <PropertyColumn Property="x => x.Result" Title="Результат" />
+            <PropertyColumn Property="x => x.MapName" Title="Карта" />
+        </Columns>
+    </MudDataGrid>
+}
+else
+{
+    <MudDataGrid RowClass="row-ktv" Style="background-color: #1e1f25;" Bordered=false RowStyle="border: 0px" RowStyleFunc="@_rowStyleFunc" Items="@data.Matches" FilterCaseSensitivity=DataGridFilterCaseSensitivity.Ignore Virtualize="true" Hover="true" FilterMode=DataGridFilterMode.ColumnFilterMenu Filterable="false" SortMode="@SortMode.None" Groupable="false">
+        <Columns>
+            <TemplateColumn CellStyle="width:100%;" Style="width:100%;" Title="" HeaderStyle="display: none;width:100%" Filterable="false">
+                <CellTemplate>
+                    <a href="/match/@context.Item.ID">
+                        <div style="display: flex; flex-direction: column;height: 100%;align-items: center;justify-content: space-evenly;">
+                            <div class="mud-typography-h5" style="font-weight: 600;width:100%;text-align:center">@context.Item.DateTime</div>
+                            <div style="display: flex;flex-direction:row;width: 100%;align-items: center;justify-content: center;">
+                                <div class="mud-typography-h5" style="font-weight: 600;display:flex;text-align:center;">@context.Item.Result</div>
+                            </div>
+                            <div style="font-weight: 600;" class="mud-typography-h5">@context.Item.MapName</div>
+                        </div>
+                    </a>
+                </CellTemplate>
+            </TemplateColumn>
+        </Columns>
+    </MudDataGrid>
+
+}
+
+<style>
+    .mud-table-cell {
+        display: table-cell;
+        padding: 16px;
+        font-size: .875rem;
+        text-align: start;
+        font-weight: 400;
+        line-height: 1.43;
+        border-bottom: 0px solid var(--mud-palette-table-lines);
+        letter-spacing: .01071em;
+        vertical-align: inherit;
+    }
+
+    .row-ktv {
+        background-color: rgb(0 0 0 / 50%);
+    }
+
+        .row-ktv:hover {
+            background-color: rgb(0 0 0 / 65%);
+        }
+
+    .mud-table-hover .mud-table-container .mud-table-root .mud-table-body .mud-table-row:hover {
+        background-color: rgb(0 0 0 / 35%);
+    }
+</style>
+
+@code {
+    [Parameter]
+    public string TeamID { get; set; }
+
+    private TeamPageData data = new();
+    private IEnumerable<string> list = [];
+    private bool isMobile { get; set; }
+
+    private string membersCardStyle = "flex-row";
+    private string memberCardMargin = "width: 300px";
+    private int memberCardHeight = 100;
+
+    private bool isAdmin = false;
+
+    async Task ShowAlert(string caption, string text, int time, SweetAlertIcon icon, Func<Task> customCallback)
+    {
+        var options = new SweetAlertOptions
+            {
+                TimerProgressBar = true,
+                Timer = time,
+                Title = caption,
+                Text = text,
+                Icon = icon,
+                WillClose = new SweetAlertCallback(async () =>
+                {
+                    await customCallback();
+                })
+            };
+
+        await Swal.FireAsync(options);
+    }
+
+    private void OpenTeamEdit()
+    {
+        NavigationManager.NavigateTo("/editteamprofile", false);
+    }
+
+    private void OpenTeamEditAsAdmin()
+    {
+        NavigationManager.NavigateTo($"/adminteam/{TeamID}", false);
+    }
+
+    private async Task OnRowClick(DataGridRowClickEventArgs<TeamMatch> eventArgs)
+    {
+        var match = eventArgs.Item;
+        NavigationManager.NavigateTo($"/match/{match.ID}");
+    }
+
+    private Func<TeamMatch, int, string> _rowStyleFuncMobile => (x, i) =>
+    {
+        return "margin-bottom: 2%;display: block;background-image: url(/images/mapsbackgrs/" + x.MapName + ".jpg);background-size: 150% auto; background-position: center; background-color: rgb(0 0 0 / 50%); background-blend-mode: multiply;";
+    };
+
+    private async Task DeleteTeam()
+    {
+        var result = repo.DeleteTeam(Convert.ToInt32(TeamID), data.Info.CapSteamID);
+        if (result == 1)
+        {
+            await ShowAlert("Ошибка", "Редактирование составов на данный момент запрещено!", 3000, SweetAlertIcon.Error, null);
+            return;
+        }
+        if (result == 2)
+        {
+            await ShowAlert("Успех", "Вы удалили команду!", 3000, SweetAlertIcon.Success, async () =>
+            {
+                NavigationManager.NavigateTo("/", true);
+            });
+        }
+    }
+
+    private async Task LeaveTeam()
+    {
+        var result = repo.LeaveTeam(AuthProvider.CurrentUser.SteamId);
+        if (result == 0)
+        {
+            await ShowAlert("Ошибка", "Редактирование составов на данный момент запрещено!", 3000, SweetAlertIcon.Error, null);
+            return;
+        }
+        if (result == 2)
+        {
+            await ShowAlert("Успех", "Вы вышли из команды!", 3000, SweetAlertIcon.Success, async () =>
+            {
+                NavigationManager.NavigateTo("/myprofile", true);
+            });            
+        }
+    }
+
+    private async Task KickPlayer(string steam)
+    {
+        var result = repo.LeaveTeam(steam);
+        if (result == 0)
+        {
+            await ShowAlert("Ошибка", "Редактирование составов на данный момент запрещено!", 3000, SweetAlertIcon.Error, null);
+            return;
+        }
+        if (result == 2)
+        {
+            await ShowAlert("Успех", "Игрок был выгнан из команды!", 3000, SweetAlertIcon.Success, async () =>
+            {
+                NavigationManager.Refresh(true);
+            });            
+        }
+    }
+
+    private Func<TeamMatch, int, string> _rowStyleFunc => (x, i) =>
+       {
+           return "display: flex; margin-bottom: 0.5%;background-image: url(/images/mapsbackgrs/" + x.MapName + ".jpg);height: 130px;background-size: 100% auto; background-position: center; background-blend-mode: multiply;";
+       };
+
+    protected override async Task OnInitializedAsync()
+    {
+        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
+        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        {
+            isMobile = true;
+            // membersCardStyle = "flex-column";
+            // memberCardHeight = 250;
+            // memberCardMargin = "margin-bottom: 2%";
+        }
+
+        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+    }
+
+    protected override void OnAfterRender(bool firstRender)
+    {
+        if (firstRender)
+        {
+            JS.InvokeVoidAsync("showLoadBar");
+
+            var team = repo.GetTeamByID(Convert.ToInt32(TeamID));
+
+            var captain = team.Members.FirstOrDefault(x => x.SteamID == team.Info.CapSteamID);
+
+            var members = team.Members.Where(x => x.SteamID != team.Info.CapSteamID).ToList();
+
+            data = team;
+
+            data.Members.Clear();
+
+            if (captain != null)
+            {
+                data.Members.Add(captain);
+            }
+
+            data.Members.AddRange(members);
+
+            StateHasChanged();
+
+            JS.InvokeVoidAsync("hideLoadBar");
+        }
+
+        base.OnAfterRender(firstRender);
+    }
+}

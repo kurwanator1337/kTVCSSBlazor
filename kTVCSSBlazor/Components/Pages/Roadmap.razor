@@ -1,0 +1,51 @@
+﻿@page "/roadmap"
+@using System.Data.SqlClient
+@using Dapper
+@using kTVCSSBlazor.Db
+@inject Context db
+
+<MudText Typo="Typo.h3" Align="Align.Center">Дорожная карта разработчика</MudText>
+@* <MudText Color="Color.Info" Typo="Typo.h6" Align="Align.Center">Синие задачи - в процессе</MudText>
+<MudText Color="Color.Error" Typo="Typo.h6" Align="Align.Center">Красные задачи - в планах</MudText>
+<MudText Color="Color.Success" Typo="Typo.h6" Align="Align.Center">Зеленые задачи - выполненные</MudText> *@
+
+<MudTimeline TimelinePosition="TimelinePosition.Bottom" >
+    @foreach (var item in items)
+    {
+        <MudTimelineItem Color="@item.Status" Size="Size.Small">
+            <ItemOpposite>
+                <MudText Color="@item.Status" Typo="Typo.h5">@item.DateTime.ToShortDateString()</MudText>
+            </ItemOpposite>
+            <ItemContent>
+                <MudText Color="@item.Status" Typo="Typo.h6" GutterBottom="true">@item.Title</MudText>
+                <MudText>
+                    @((MarkupString)item.Description)
+                </MudText>
+            </ItemContent>
+        </MudTimelineItem>
+    }
+</MudTimeline>
+
+@code {
+    public class RoadmapItem
+    {
+        public DateTime DateTime { get; set; }
+        public string Title { get; set; }
+        public string Description { get; set; }
+        public Color Status { get; set; }
+    }
+
+    private List<RoadmapItem> items = new List<RoadmapItem>();
+
+    protected override void OnInitialized()
+    {
+        using (var sql = new SqlConnection(db.ConnectionString))
+        {
+            sql.Open();
+
+            items.AddRange(sql.Query<RoadmapItem>("SELECT * FROM Roadmap ORDER BY DateTime ASC"));
+        }
+
+        base.OnInitialized();
+    }
+}
