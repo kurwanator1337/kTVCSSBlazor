@@ -86,11 +86,12 @@
                             @if (!isMobile)
                             {
                                 <MudIconButton OnClick="@(() => { JS.InvokeVoidAsync("connectToTeamSpeak", "ts.ktvcss.ru", 9987); })" Icon="@MyIcons.Teamspeak" Color="Color.Inherit" />
-                                <MudIconButton Href="https://vk.com/kTVCSS" Icon="@MyIcons.VK" Color="Color.Inherit" />
-                                <MudIconButton Href="https://www.youtube.com/kTVCSS" Icon="@Icons.Custom.Brands.YouTube" Color="Color.White" />
-                                <MudIconButton Href="https://discord.gg/VMXP5v3Jwm" Icon="@Icons.Custom.Brands.Discord" Color="Color.White" />
+                                <MudIconButton Target="_blank" Href="https://github.com/kurwanator1337/kTVCSSBlazor" Icon="@Icons.Custom.Brands.GitHub" Color="Color.Inherit" />
+                                <MudIconButton Target="_blank" Href="https://vk.com/kTVCSS" Icon="@MyIcons.VK" Color="Color.Inherit" />
+                                <MudIconButton Target="_blank" Href="https://www.youtube.com/kTVCSS" Icon="@Icons.Custom.Brands.YouTube" Color="Color.White" />
+                                <MudIconButton Target="_blank" Href="https://discord.gg/VMXP5v3Jwm" Icon="@Icons.Custom.Brands.Discord" Color="Color.White" />
                                 <MudTooltip Text="Telegram бот для оповещения о найденных матчах">
-                                    <MudIconButton Href="https://t.me/ktvcss_matchalerterbot" Icon="@Icons.Custom.Brands.Telegram" Color="Color.White" />
+                                    <MudIconButton Target="_blank" Href="https://t.me/ktvcss_matchalerterbot" Icon="@Icons.Custom.Brands.Telegram" Color="Color.White" />
                                 </MudTooltip>
                             }
 
@@ -281,7 +282,7 @@
                         <NavMenu />
                         <MudSpacer />
                         @* <MudText Align="Align.Center" Typo="Typo.overline">kTVCSS © 2013-2024</MudText> *@
-                        <MudText Color="Color.Success" Align="Align.Center" Typo="Typo.caption">kTVCSS v3.5.2.1 [STABLE]</MudText>
+                        <MudText Color="Color.Success" Align="Align.Center" Typo="Typo.caption">kTVCSS v3.5.2.2 [STABLE]</MudText>
                     </MudDrawer>
                     <MudMainContent>
                         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4 pt-4">
@@ -481,12 +482,17 @@ else
 </style>
 
 <script>
-    window.setDotNetInterval = function (dotNetObject, methodName, interval) {
-        setInterval(function () {
-            console.log("~~~~~keep alive~~~~~");
-            dotNetObject.invokeMethodAsync(methodName);
-        }, interval);
-    };    
+    var steamID = "";
+    
+    function setSteam(steam) {
+        steamID = steam;
+        console.log(steamID);
+    }
+    
+    window.onbeforeunload = function (e) {
+        DotNet.invokeMethodAsync('kTVCSSBlazor', 'NotifyUserDisconnected', steamID);
+    }; 
+
 </script>
 
 @code {
@@ -644,6 +650,8 @@ else
 
         if (user is not null)
         {
+            JS.InvokeVoidAsync("setSteam", user.SteamId);
+            
             locationChangingSubscription = NavigationManager.RegisterLocationChangingHandler(async cxt =>
             {
                 Alerts = await repo.GetAlerts(user.Id);

@@ -8,11 +8,12 @@ using Telegram.Bot.Types.Enums;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class Vips(string connectionString) : IVips
+    public class Vips(IConfiguration configuration, ILogger logger) : IVips
     {
-        private SqlConnection Db { get; set; } = new SqlConnection(connectionString);
-
-        private string ConnectionString { get; set; } = connectionString;
+        private SqlConnection Db { get; set; } = new SqlConnection(configuration.GetConnectionString("db"));
+        private IConfiguration configuration = configuration;
+        private string ConnectionString { get; set; } = configuration.GetConnectionString("db");
+        private ILogger Logger { get; set; } = logger;
 
         private void EnsureConnected()
         {
@@ -33,7 +34,7 @@ namespace kTVCSSBlazor.Db.Repository
 
         private async Task<bool> GetInfoFromTelegram(long userId)
         {
-            string token = "7283485794:AAHIPhfiZI5ZkCjfr3B0lFyvlts19NX7yrE";
+            string token = configuration.GetValue<string>("tgBotToken");
 
             try
             {
@@ -110,6 +111,8 @@ namespace kTVCSSBlazor.Db.Repository
                 d.Add("STEAMID", steam);
 
                 Db.Execute("DeletePlayer", d, commandType: CommandType.StoredProcedure);
+
+                Logger.LogInformation($"https://ktvcss.ru/player/{id} обнулил статистику");
 
                 return true;
             }

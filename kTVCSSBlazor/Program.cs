@@ -90,10 +90,10 @@ builder.Services.AddSingleton<IUserFeed, kTVCSSBlazor.Db.Repository.UserFeed>(pr
 builder.Services.AddSingleton<IAdmins, kTVCSSBlazor.Db.Repository.Admins>(provider => new kTVCSSBlazor.Db.Repository.Admins(builder.Configuration, new FileLogger("logger.txt")));
 builder.Services.AddSingleton<IModerators, kTVCSSBlazor.Db.Repository.Moderators>(provider => new kTVCSSBlazor.Db.Repository.Moderators(builder.Configuration, new FileLogger("logger.txt")));
 builder.Services.AddSingleton<IPlayers, kTVCSSBlazor.Db.Repository.Players>(provider => new kTVCSSBlazor.Db.Repository.Players(builder.Configuration, new FileLogger("logger.txt")));
-builder.Services.AddSingleton<IHighlights, kTVCSSBlazor.Db.Repository.Highlights>(provider => new kTVCSSBlazor.Db.Repository.Highlights(builder.Configuration, new Vips(builder.Configuration.GetConnectionString("db"))));
+builder.Services.AddSingleton<IHighlights, kTVCSSBlazor.Db.Repository.Highlights>(provider => new kTVCSSBlazor.Db.Repository.Highlights(builder.Configuration, new Vips(builder.Configuration, new FileLogger("logger.txt"))));
 builder.Services.AddSingleton<IMatches, Matches>(provider => new Matches(builder.Configuration.GetConnectionString("db")));
 builder.Services.AddSingleton<ITeams, Teams>(provider => new Teams(builder.Configuration.GetConnectionString("db"), new FileLogger("logger.txt")));
-builder.Services.AddSingleton<IVips, Vips>(provider => new Vips(builder.Configuration.GetConnectionString("db")));
+builder.Services.AddSingleton<IVips, Vips>(provider => new Vips(builder.Configuration, new FileLogger("logger.txt")));
 builder.Services.AddSingleton<IGameServers, GameServers>(provider => new GameServers(builder.Configuration.GetConnectionString("db")));
 builder.Services.AddSingleton<IFAQ, FAQ>(provider => new FAQ(builder.Configuration.GetConnectionString("db")));
 builder.Services.AddSingleton<IIM, IM>(provider => new IM(builder.Configuration.GetConnectionString("db")));

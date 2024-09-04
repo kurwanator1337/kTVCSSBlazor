@@ -29,7 +29,7 @@ namespace kTVCSSBlazor.Hubs
         private ILogger logger { get; set; }
         private IConfiguration configuration { get; set; }
         public static bool Checking = false;
-        private string alertToken = "7232949838:AAGefawpkq-Zxk45Jp2KrmrOkUVNxD-3w8o";
+        private string alertToken = "";
         private Telegram.Bot.TelegramBotClient botClient { get; set; }
 
         private const int ReadyCount = 10;
@@ -127,8 +127,9 @@ namespace kTVCSSBlazor.Hubs
             Instance = this;
             this.logger = logger;
             configuration = cfg;
+            alertToken = configuration.GetValue<string>("tgMatchAlertBotToken");
             botClient = new Telegram.Bot.TelegramBotClient(alertToken);
-
+            
             /*
             List<AwaitingPlayer> test = new List<AwaitingPlayer>();
             test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 219"));
