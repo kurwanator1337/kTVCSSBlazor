@@ -263,6 +263,14 @@
 
     private async Task Save()
     {
+        if (profile.Login != oldLogin)
+        {
+            if (!isVip)
+            {
+                await ShowAlert("Ошибка", "nt", 5000, SweetAlertIcon.Error, null);
+                return;
+            }
+        }
         string result = repo.SaveProfile(profile, AuthProvider.CurrentUser.Id);
         string trypass = profile.Password;
         if (profile.Password.Length != 32)
