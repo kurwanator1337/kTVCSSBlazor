@@ -23,6 +23,7 @@
 @inject IJSRuntime JS
 @inject NavigationManager NavigationManager
 @inject Db.Interfaces.IPlayers repo
+@inject Db.Interfaces.IVips vips
 @inject IHttpContextAccessor httpContextAccessor
 @inject kTVCSSHub KHub
 @implements IAsyncDisposable
@@ -234,6 +235,7 @@
                                     <MudButton Color="Color.Error" Variant="Variant.Text" StartIcon="@Icons.Material.Rounded.Podcasts">ОБНОВИТЕ СТРАНИЦУ</MudButton>
                                 }
                                 <MudButton Color="Color.Info" Variant="Variant.Text">В поиске: @_currentMixSearchers</MudButton>
+                                <MudButton OnClick="OpenFriends" Color="Color.Warning" Variant="Variant.Text">Лобби</MudButton>
                             }
                             <div style="writing-mode: vertical-lr;">
                                 <MudTooltip Text=@string.Concat("Статус подключения к сети kTVCSS: ", connectionStatus)>
@@ -282,7 +284,7 @@
                         <NavMenu />
                         <MudSpacer />
                         @* <MudText Align="Align.Center" Typo="Typo.overline">kTVCSS © 2013-2024</MudText> *@
-                        <MudText Color="Color.Success" Align="Align.Center" Typo="Typo.caption">kTVCSS v3.5.2.2 [STABLE]</MudText>
+                        <MudText Color="Color.Warning" Align="Align.Center" Typo="Typo.caption">kTVCSS v3.5.3.1 [TESTING]</MudText>
                     </MudDrawer>
                     <MudMainContent>
                         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4 pt-4">
@@ -633,6 +635,24 @@ else
         options.Text = "Для восстановления доступа к аккаунту Вам необходимо связаться с администрацией и назвать код, который Вы вводили при регистрации. Такие сложности сделаны в рамках безопасности. Если Вы код не помните, то мы ничем Вам помочь не сможем. 🥲";
         options.Icon = SweetAlertIcon.Warning;
         Swal.FireAsync(options);
+    }
+
+    private async Task OpenFriends()
+    {
+        if (await vips.IsPremiumVip(user.SteamId))
+        {
+            NavigationManager.NavigateTo("/friends");
+        }
+        else
+        {
+            SweetAlertOptions options = new();
+            options.TimerProgressBar = true;
+            options.Timer = 5000;
+            options.Title = "Ошибка";
+            options.Text = "Для того, чтобы приглашать игроков в лобби, необходима подписка уровня PREMIUM!";
+            options.Icon = SweetAlertIcon.Error;
+            Swal.FireAsync(options);
+        }
     }
 
     private async Task ConnectedWithHub()

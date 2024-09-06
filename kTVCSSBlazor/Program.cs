@@ -40,7 +40,7 @@ builder.Services.AddSignalR(options =>
     options.MaximumParallelInvocationsPerClient = 1;
 });
 
-builder.Services.AddSingleton<kTVCSSHub>(x => new kTVCSSHub(builder.Configuration.GetConnectionString("db"), new FileLogger("logger.txt"), builder.Configuration));
+builder.Services.AddSingleton<kTVCSSHub>(x => new kTVCSSHub(builder.Configuration.GetConnectionString("db"), new FileLogger("logger.txt"), builder.Configuration, new Vips(builder.Configuration, new FileLogger("logger.txt"))));
 builder.Services.AddSingleton<STVDirectorHub>(x => new STVDirectorHub(builder.Configuration.GetConnectionString("db")));
 
 builder.Services.AddScoped<NotificationService>();

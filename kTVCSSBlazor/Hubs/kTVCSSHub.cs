@@ -13,6 +13,7 @@ using static Dapper.SqlMapper;
 using static MudBlazor.CategoryTypes;
 using Telegram.Bot;
 using Newtonsoft.Json.Linq;
+using kTVCSSBlazor.Db.Interfaces;
 
 namespace kTVCSSBlazor.Hubs
 {
@@ -27,6 +28,7 @@ namespace kTVCSSBlazor.Hubs
         public static kTVCSSHub Instance { get; set; }
         private string _connectionString { get; set; }
         private ILogger logger { get; set; }
+        private IVips vips { get; set; }
         private IConfiguration configuration { get; set; }
         public static bool Checking = false;
         private string alertToken = "";
@@ -119,9 +121,10 @@ namespace kTVCSSBlazor.Hubs
 
         #region Координатор
 
-        public kTVCSSHub(string connectionString, ILogger logger, IConfiguration cfg)
+        public kTVCSSHub(string connectionString, ILogger logger, IConfiguration cfg, IVips vips)
         {
             _connectionString = connectionString;
+            this.vips = vips;
             Db = new SqlConnection(connectionString);
             PlayersDirector();
             Instance = this;
@@ -868,9 +871,25 @@ namespace kTVCSSBlazor.Hubs
 
         public async Task SendRequestToJoinLobby(int id, User from)
         {
-            Clients.Caller.SendAsync("GetActionError", "Лобби временно отключены разработчиком!");
+            if (!await vips.IsPremiumVip(from.SteamId))
+            {
+                Clients.Caller.SendAsync("GetActionError", "Чтобы приглашать игроков в лобби необходима подписка уровня PREMIUM!");
+                return;
+            }
 
-            return;
+            EnsureConnected();
+
+            string invitedSteam = Db.QueryFirst<string>($"SELECT STEAMID FROM Players WHERE ID = {id}");
+
+            if (!await vips.IsPremiumVip(invitedSteam))
+            {
+                Clients.Caller.SendAsync("GetActionError", "У приглашаемого Вами игрока должна быть подписка уровня PREMIUM!");
+                return;
+            }
+
+            //Clients.Caller.SendAsync("GetActionError", "Лобби временно отключены разработчиком!");
+
+            //return;
 
             //if (from.CurrentMMR > 1700)
             //{
@@ -1210,7 +1229,10 @@ namespace kTVCSSBlazor.Hubs
             {
                 OnlineUsers.TryGetValue(connectionId, out User leaver);
 
-                logger.LogDebug($"{leaver.Username} отключился от хаба ({Context.ConnectionId})");
+                if (leaver is not null)
+                {
+                    logger.LogDebug($"{leaver.Username} отключился от хаба ({Context.ConnectionId})");
+                }
 
                 LeaveFromLobby(leaver);
             }

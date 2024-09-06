@@ -97,7 +97,7 @@
                 @if (@AuthProvider.CurrentUser.Id == Convert.ToInt32(Id))
                 {
                     <MudButton Href="/editprofile" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Edit" Color="Color.Primary">Редактировать профиль</MudButton>
-                    @if (isVip)
+                    @if (isVip || isPremiumVip)
                     {
                         <MudButton OnClick="(() => { ResetStats(); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Clear" Color="Color.Primary">Обнулить статистику</MudButton>
                     }
@@ -235,6 +235,7 @@
     private string reportReason = "";
     private string banReason = "";
     private bool isVip = false;
+    private bool isPremiumVip = false;
     private bool isAdmin = false;
     private bool isModer = false;
     private bool itIsAdmin = false;
@@ -268,15 +269,15 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var vip = await repo.IsVip(AuthProvider.CurrentUser.SteamId);
-        isVip = vip ? true : false;
+        isVip = await repo.IsVip(AuthProvider.CurrentUser.SteamId);
+        isPremiumVip = await vip.IsPremiumVip(AuthProvider.CurrentUser.SteamId);
         isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
         itIsAdmin = await admin.IsAdmin(player.MainInfo.SteamID);
         itIsVip = await repo.IsVip(player.MainInfo.SteamID);
         isModer = await moder.IsModerator(Convert.ToInt32(Id));
         myself = AuthProvider.CurrentUser;
     }
-    
+
     private async Task SetMMR()
     {
         var options = new SweetAlertOptions
@@ -403,11 +404,11 @@
     private async Task Submit()
     {
         visible = false;
-        
+
         int me = AuthProvider.CurrentUser.Id;
 
         string text = reportReason;
-        
+
         var options = new SweetAlertOptions
         {
             Title = "Детали репорта",
@@ -450,19 +451,39 @@
 
     private async Task ResetStats()
     {
-        if (await vip.ResetStats(Convert.ToInt32(Id)))
+        if (isPremiumVip)
         {
-            await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
-                {
-                    NavigationManager.NavigateTo($"/player/{AuthProvider.CurrentUser.Id}", true);
-                });
+            if (await vip.ResetFullStats(Convert.ToInt32(Id)))
+            {
+                await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
+                    {
+                        NavigationManager.NavigateTo($"/player/{AuthProvider.CurrentUser.Id}", true);
+                    });
+            }
+            else
+            {
+                await ShowAlert("Ошибка", "Вам нужно отыграть минимум 10 матчей, чтобы обнулять статистику!", 3000, SweetAlertIcon.Error, async () =>
+                    {
+
+                    });
+            }
         }
         else
         {
-            await ShowAlert("Ошибка", "Вам нужно отыграть минимум 10 матчей, чтобы обнулять статистику!", 3000, SweetAlertIcon.Error, async () =>
-                {
-                    
-                });
-        }        
+            if (await vip.ResetStats(Convert.ToInt32(Id)))
+            {
+                await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
+                    {
+                        NavigationManager.NavigateTo($"/player/{AuthProvider.CurrentUser.Id}", true);
+                    });
+            }
+            else
+            {
+                await ShowAlert("Ошибка", "Вам нужно отыграть минимум 10 матчей, чтобы обнулять статистику!", 3000, SweetAlertIcon.Error, async () =>
+                    {
+
+                    });
+            }
+        }
     }
 }

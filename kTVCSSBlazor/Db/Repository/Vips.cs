@@ -55,6 +55,29 @@ namespace kTVCSSBlazor.Db.Repository
             return false;
         }
 
+        private async Task<bool> GetPremiumInfoFromTelegram(long userId)
+        {
+            string token = configuration.GetValue<string>("tgBotToken");
+
+            try
+            {
+                TelegramBotClient botClient = new TelegramBotClient(token);
+                var chat = await botClient.GetChatMemberAsync(new ChatId(-1002359074161), userId);
+                if (chat.User != null)
+                {
+                    if (chat.Status == ChatMemberStatus.Member || chat.Status == ChatMemberStatus.Restricted)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return false;
+        }
+
         public async Task<bool> IsVip(string steam)
         {
             EnsureConnected();
@@ -115,6 +138,65 @@ namespace kTVCSSBlazor.Db.Repository
                 Logger.LogInformation($"https://ktvcss.ru/player/{id} обнулил статистику");
 
                 return true;
+            }
+
+            return false;
+        }
+
+        public async Task<bool> ResetFullStats(int id)
+        {
+            EnsureConnected();
+
+            string? steam = Db.QueryFirstOrDefault<string>($"SELECT STEAMID FROM Players WHERE ID = {id}");
+
+            if (steam != null)
+            {
+                if (!await IsPremiumVip(steam)) return false;
+
+                int matchesCount = Db.QueryFirstOrDefault<int>($"SELECT MATCHESPLAYED FROM Players WHERE ID = {id}");
+
+                if (matchesCount > 0)
+                {
+                    if (matchesCount < 10)
+                    {
+                        return false;
+                    }
+                }
+
+                DynamicParameters d = new();
+                d.Add("STEAMID", steam);
+
+                Db.Execute("DeletePlayerEx", d, commandType: CommandType.StoredProcedure);
+
+                Logger.LogInformation($"https://ktvcss.ru/player/{id} полностью обнулил статистику");
+
+                return true;
+            }
+
+            return false;
+        }
+
+        public async Task<bool> IsPremiumVip(string steam)
+        {
+            EnsureConnected();
+
+            try
+            {
+                long tgId = Db.QueryFirstOrDefault<long>($"SELECT TELEGRAMID FROM Players WITH (NOLOCK) WHERE STEAMID = '{steam}'");
+
+                if (tgId > 0)
+                {
+                    var tg = await GetPremiumInfoFromTelegram(tgId);
+
+                    if (tg)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                // tg null
             }
 
             return false;
