@@ -1,5 +1,6 @@
 ﻿@page "/editprofile"
 @using CurrieTechnologies.Razor.SweetAlert2
+@using System.Text.RegularExpressions
 @using kTVCSSBlazor.Db.Models.Players
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
@@ -161,13 +162,13 @@
     private async Task RemoveAvatar()
     {
         profile.AvatarUrl = $"/images/logo_ktv.png";
-        await ShowAlert("Предупреждение", "Аватар был успешно удален! Не забудьте сохранить изменения", 3000, SweetAlertIcon.Info, null);
+        await ShowAlert("Предупреждение", "Аватар был успешно удален! Не забудьте сохранить изменения", 3000, SweetAlertIcon.Info, async () => { });
     }
 
     private async Task RemoveHeader()
     {
         profile.HeaderUrl = $"";
-        await ShowAlert("Предупреждение", "Шапка была успешно удалена! Не забудьте сохранить изменения", 3000, SweetAlertIcon.Info, null);
+        await ShowAlert("Предупреждение", "Шапка была успешно удалена! Не забудьте сохранить изменения", 3000, SweetAlertIcon.Info, async () => { });
     }
 
     private async Task UploadAvatar(IBrowserFile file)
@@ -176,13 +177,13 @@
         {
             if (!file.ContentType.Contains("png") && !file.ContentType.Contains("jpeg"))
             {
-                await ShowAlert("Ошибка", "Загружаемый файл должен быть в формате png или jpg!", 3000, SweetAlertIcon.Error, null);
+                await ShowAlert("Ошибка", "Загружаемый файл должен быть в формате png или jpg!", 3000, SweetAlertIcon.Error, async () => { });
                 return;
             }
 
             if (file.Size > 512000)
             {
-                await ShowAlert("Ошибка", "Загружаемый файл должен быть менее 500 КБайт!", 3000, SweetAlertIcon.Error, null);
+                await ShowAlert("Ошибка", "Загружаемый файл должен быть менее 500 КБайт!", 3000, SweetAlertIcon.Error, async () => { });
                 return;
             }
         }
@@ -201,7 +202,7 @@
 
         profile.AvatarUrl = $"/images/avatars/{guid}{Path.GetExtension(file.Name)}";
 
-        await ShowAlert("Успех", "Новый аватар был успешно загружен! Не забудьте сохранить изменения!", 3000, SweetAlertIcon.Success, null);
+        await ShowAlert("Успех", "Новый аватар был успешно загружен! Не забудьте сохранить изменения!", 3000, SweetAlertIcon.Success, async () => { });
     }
 
     private async Task UploadHeader(IBrowserFile file)
@@ -210,13 +211,13 @@
         {
             if (!file.ContentType.Contains("png") && !file.ContentType.Contains("jpeg"))
             {
-                await ShowAlert("Ошибка", "Загружаемый файл должен быть в формате png или jpg!", 3000, SweetAlertIcon.Error, null);
+                await ShowAlert("Ошибка", "Загружаемый файл должен быть в формате png или jpg!", 3000, SweetAlertIcon.Error, async () => { });
                 return;
             }
 
             if (file.Size > 512000)
             {
-                await ShowAlert("Ошибка", "Загружаемый файл должен быть менее 500 КБайт!", 3000, SweetAlertIcon.Error, null);
+                await ShowAlert("Ошибка", "Загружаемый файл должен быть менее 500 КБайт!", 3000, SweetAlertIcon.Error, async () => { });
                 return;
             }
         }
@@ -235,7 +236,7 @@
 
         profile.HeaderUrl = $"/images/playerheaders/{guid}{Path.GetExtension(file.Name)}";
 
-        await ShowAlert("Успех", "Новая шапка профиля была успешно загружена! Не забудьте сохранить изменения!", 3000, SweetAlertIcon.Success, null);
+        await ShowAlert("Успех", "Новая шапка профиля была успешно загружена! Не забудьте сохранить изменения!", 3000, SweetAlertIcon.Success, async () => { });
     }
 
     bool isVip = false;
@@ -261,13 +262,25 @@
         }
     }
 
+    private bool IsValidLogin(string login)
+    {
+        string pattern = @"^[a-zA-Zа-яА-Я0-9_\-=]+$";
+        return Regex.IsMatch(login, pattern);
+    }
+
     private async Task Save()
     {
         if (profile.Login != oldLogin)
         {
             if (!isVip)
             {
-                await ShowAlert("Ошибка", "nt", 5000, SweetAlertIcon.Error, null);
+                await ShowAlert("Ошибка", "nt", 5000, SweetAlertIcon.Error, async () => { });
+                return;
+            }
+
+            if (!IsValidLogin(profile.Login))
+            {
+                await ShowAlert("Ошибка", "Новый логин содержит не допустимые символы!", 5000, SweetAlertIcon.Error, async () => { });
                 return;
             }
         }
@@ -295,7 +308,7 @@
         }
         else
         {
-            await ShowAlert("Ошибка", result, 5000, SweetAlertIcon.Error, null);
+            await ShowAlert("Ошибка", result, 5000, SweetAlertIcon.Error, async () => { });
         }
     }
 

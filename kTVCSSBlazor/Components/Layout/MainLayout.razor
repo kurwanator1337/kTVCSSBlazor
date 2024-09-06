@@ -354,7 +354,7 @@
                                             <MudCard>
                                                 <MudCardMedia Style="background-size: contain;" Image="/images/logo_ktv.png" Height="300" />
                                                 <MudCardContent>
-                                                    <MudTextField Label="Логин"
+                                                    <MudTextField Label="Логин (Ваш игровой ник)"
                                                                   @bind-Value="model.Login" For="@(() => model.Login)" />
                                                     <MudTextField Label="Пароль" Class="mt-3"
                                                                   @bind-Value="model.Password" For="@(() => model.Password)" InputType="InputType.Password" />
@@ -651,7 +651,7 @@ else
         if (user is not null)
         {
             JS.InvokeVoidAsync("setSteam", user.SteamId);
-            
+
             locationChangingSubscription = NavigationManager.RegisterLocationChangingHandler(async cxt =>
             {
                 Alerts = await repo.GetAlerts(user.Id);
@@ -1175,9 +1175,21 @@ else
         }
     }
 
+    private bool IsValidLogin(string login)
+    {
+        string pattern = @"^[a-zA-Zа-яА-Я0-9_\-=]+$";
+        return Regex.IsMatch(login, pattern);
+    }
+
     private async Task OnValidSubmit(EditContext ctx)
     {
         var model = ctx.Model as RegisterAccountForm;
+
+        if (!IsValidLogin(model.Login))
+        {
+            error = "Логин содержит недопустимые знаки!";
+            return;
+        }
 
         user = new User()
             {
@@ -1198,6 +1210,12 @@ else
     private async Task OnRegSubmit(EditContext ctx)
     {
         var model = ctx.Model as RegisterAccountForm;
+
+        if (!IsValidLogin(model.Login))
+        {
+            error = "Логин содержит недопустимые знаки!";
+            return;
+        }
 
         error = await AuthProvider.SignupAsync(model.Login, model.Password);
 

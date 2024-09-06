@@ -96,14 +96,14 @@
     {
         profile.Url = $"/images/logo_ktv.png";
 
-        await ShowAlert("Предупреждение", "Аватар был успешно удален! Не забудьте сохранить изменения", 3000, SweetAlertIcon.Info, null);
+        await ShowAlert("Предупреждение", "Аватар был успешно удален! Не забудьте сохранить изменения", 3000, SweetAlertIcon.Info, async () => { });
     }
 
     private async Task UploadAvatar(IBrowserFile file)
     {
         if (!file.ContentType.Contains("png") && !file.ContentType.Contains("jpeg"))
         {
-            await ShowAlert("Ошибка", "Загружаемый файл должен быть в формате png или jpg!", 3000, SweetAlertIcon.Error, null);
+            await ShowAlert("Ошибка", "Загружаемый файл должен быть в формате png или jpg!", 3000, SweetAlertIcon.Error, async () => { });
             //snackbar.Configuration.PositionClass = Defaults.Classes.Position.BottomCenter;
             //snackbar.Add("Загружаемый файл должен быть в формате png!", Severity.Error);
             return;
@@ -111,7 +111,7 @@
 
         if (file.Size > 512000)
         {
-            await ShowAlert("Ошибка", "Загружаемый файл должен быть менее 500 КБайт!", 3000, SweetAlertIcon.Error, null);
+            await ShowAlert("Ошибка", "Загружаемый файл должен быть менее 500 КБайт!", 3000, SweetAlertIcon.Error, async () => { });
             return;
         }
 
@@ -129,7 +129,7 @@
 
         profile.Url = $"/images/logos/{guid}.png";
 
-        await ShowAlert("Успех", "Новая шапка профиля была успешно загружена! Не забудьте сохранить изменения!", 3000, SweetAlertIcon.Success, null);
+        await ShowAlert("Успех", "Новая шапка профиля была успешно загружена! Не забудьте сохранить изменения!", 3000, SweetAlertIcon.Success, async () => { });
     }
 
     protected override async Task OnInitializedAsync()

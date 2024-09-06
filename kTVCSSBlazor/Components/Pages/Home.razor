@@ -31,10 +31,13 @@
 @using SqlConnection = Microsoft.Data.SqlClient.SqlConnection
 
 <MudContainer MaxWidth="MaxWidth.Large">
-    <MudAlert Style="margin-bottom: 1%" Severity="Severity.Info">С 30 августа 2024 года на проекте начался новый рейтинговый сезон - всем игрокам была сброшена статистика.</MudAlert>
-    <MudAlert Style="margin-bottom: 1%" Severity="Severity.Error">Рейтинг и прочие вещи восстанавливаться по просьбам не будут. Все в равных условиях и проходят калибровку вновь.</MudAlert>
-    <MudAlert Style="margin-bottom: 1%" Severity="Severity.Warning">Некоторые учетные записи были удалены по техническим причинам. Если Вы были VIP игроком, то привяжите заново TG к профилю и VIP доступ будет возвращен.</MudAlert>
-    
+    @if (TopAlerts.Any()) 
+    {
+        @foreach (var alert in TopAlerts) 
+        {
+            <MudAlert Style="margin-bottom: 1%" Severity="@((Severity)alert.Severity)">@alert.Text</MudAlert>
+        }
+    }
     <MudTabs Elevation="2" Rounded="true" Centered="true">
         <MudTabPanel Style="margin-bottom: 1%" Icon="@Icons.Material.Filled.Article" Text="Посты">
             <MudPaper Style="margin-bottom: 1%;margin-top: 1%" Elevation="4" Class="pa-4">
@@ -344,6 +347,8 @@
     private bool isVip;
     private List<Db.Models.Arcticles.Article> newsList = new();
 
+    private List<dynamic> TopAlerts { get; set; } = new();
+
     private string imgWidth = "40%";
     private string videoWidth = "50%";
 
@@ -430,6 +435,8 @@
                 var arcticles = sql.Query<Db.Models.Arcticles.Article>("SELECT * FROM Feed ORDER BY DATETIME DESC");
 
                 newsList.AddRange(arcticles);
+
+                TopAlerts = sql.Query("SELECT * FROM TopAlerts").ToList();
             }
 
             StateHasChanged();

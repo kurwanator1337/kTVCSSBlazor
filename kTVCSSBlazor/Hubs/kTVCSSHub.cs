@@ -1065,6 +1065,8 @@ namespace kTVCSSBlazor.Hubs
             RefreshFriendsUsers();
             RefreshOnlineUsers();
 
+            Clients.Caller.SendAsync("MixesSearchCurrentCount", SearchUsers.Count);
+
             logger.LogDebug($"{user.Username} подключился к хабу ({Context.ConnectionId})");
         }
 

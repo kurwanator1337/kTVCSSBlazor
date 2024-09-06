@@ -48,17 +48,17 @@
 
         if (result == 0)
         {
-            await ShowAlert("Ошибка", "Команда с таким названием уже существует!", 3000, SweetAlertIcon.Error, null);
+            await ShowAlert("Ошибка", "Команда с таким названием уже существует!", 3000, SweetAlertIcon.Error, async () => { });
             return;
         }
         if (result == 1)
         {
-            await ShowAlert("Ошибка", "У Вас уже есть команда!", 3000, SweetAlertIcon.Error, null);
+            await ShowAlert("Ошибка", "У Вас уже есть команда!", 3000, SweetAlertIcon.Error, async () => { });
             return;
         }
         if (result == 2)
         {
-            await ShowAlert("Ошибка", "Вы уже состоите в команде!", 3000, SweetAlertIcon.Error, null);
+            await ShowAlert("Ошибка", "Вы уже состоите в команде!", 3000, SweetAlertIcon.Error, async () => { });
             return;
         }
         if (result == 4)
