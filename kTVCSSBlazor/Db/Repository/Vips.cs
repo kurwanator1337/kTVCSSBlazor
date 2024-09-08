@@ -98,6 +98,13 @@ namespace kTVCSSBlazor.Db.Repository
             {
                 if (!await IsVip(steam)) return false;
 
+                int live = Db.QueryFirst<int>($"SELECT COUNT(*) FROM MatchesResultsLive WHERE ID IN (SELECT ID FROM MatchesLive WHERE FINISHED = 0) AND STEAMID = '{steam}'");
+
+                if (live > 0) 
+                {
+                    return false;
+                }
+
                 int matchesCount = Db.QueryFirstOrDefault<int>($"SELECT MATCHESPLAYED FROM Players WHERE ID = {id}");
 
                 if (matchesCount > 0) 
@@ -130,6 +137,13 @@ namespace kTVCSSBlazor.Db.Repository
             if (steam != null)
             {
                 if (!await IsPremiumVip(steam)) return false;
+
+                int live = Db.QueryFirst<int>($"SELECT COUNT(*) FROM MatchesResultsLive WHERE ID IN (SELECT ID FROM MatchesLive WHERE FINISHED = 0) AND STEAMID = '{steam}'");
+
+                if (live > 0)
+                {
+                    return false;
+                }
 
                 int matchesCount = Db.QueryFirstOrDefault<int>($"SELECT MATCHESPLAYED FROM Players WHERE ID = {id}");
 

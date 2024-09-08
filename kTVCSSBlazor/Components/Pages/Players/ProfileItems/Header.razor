@@ -92,7 +92,7 @@
                 @if (@AuthProvider.CurrentUser.Id == Convert.ToInt32(Id))
                 {
                     <MudButton Href="/editprofile" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Edit" Color="Color.Primary">Редактировать профиль</MudButton>
-                    @if (isVip || isPremiumVip)
+                    @if (isVip)
                     {
                         <MudButton OnClick="(() => { ResetStats(); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Clear" Color="Color.Primary">Обнулить статистику</MudButton>
                     }
@@ -101,6 +101,10 @@
                         <MudTooltip Text="Чтобы обнулять статистику, необходимо приобрести VIP привилегию">
                             <MudButton Disabled=true Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Clear" Color="Color.Primary">Обнулить статистику</MudButton>
                         </MudTooltip>
+                    }
+                    @if (isPremiumVip)
+                    {
+                        <MudButton OnClick="(() => { ResetFullStats(); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Clear" Color="Color.Error">Полное обнуление статистики</MudButton>
                     }
                 }
                 @if (@AuthProvider.CurrentUser.Id != Convert.ToInt32(Id))
@@ -444,41 +448,39 @@
         NavigationManager.NavigateTo($"/adminplayer/{Id}", false);
     }
 
-    private async Task ResetStats()
+    private async Task ResetFullStats()
     {
-        if (isPremiumVip)
+        if (await repo.Vips.ResetFullStats(Convert.ToInt32(Id)))
         {
-            if (await repo.Vips.ResetFullStats(Convert.ToInt32(Id)))
-            {
-                await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
-                    {
-                        NavigationManager.NavigateTo($"/player/{AuthProvider.CurrentUser.Id}", true);
-                    });
-            }
-            else
-            {
-                await ShowAlert("Ошибка", "Вам нужно отыграть минимум 10 матчей, чтобы обнулять статистику!", 3000, SweetAlertIcon.Error, async () =>
-                    {
-
-                    });
-            }
+            await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
+                {
+                    NavigationManager.NavigateTo($"/player/{AuthProvider.CurrentUser.Id}", true);
+                });
         }
         else
         {
-            if (await repo.Vips.ResetStats(Convert.ToInt32(Id)))
-            {
-                await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
-                    {
-                        NavigationManager.NavigateTo($"/player/{AuthProvider.CurrentUser.Id}", true);
-                    });
-            }
-            else
-            {
-                await ShowAlert("Ошибка", "Вам нужно отыграть минимум 10 матчей, чтобы обнулять статистику!", 3000, SweetAlertIcon.Error, async () =>
-                    {
+            await ShowAlert("Ошибка", "Нельзя обнулять статистику во время матча или Вам нужно отыграть минимум 10 матчей, чтобы обнулять статистику!", 3000, SweetAlertIcon.Error, async () =>
+                {
 
-                    });
-            }
+                });
+        }
+    }
+
+    private async Task ResetStats()
+    {
+        if (await repo.Vips.ResetStats(Convert.ToInt32(Id)))
+        {
+            await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
+                {
+                    NavigationManager.NavigateTo($"/player/{AuthProvider.CurrentUser.Id}", true);
+                });
+        }
+        else
+        {
+            await ShowAlert("Ошибка", "Нельзя обнулять статистику во время матча или Вам нужно отыграть минимум 10 матчей, чтобы обнулять статистику!", 3000, SweetAlertIcon.Error, async () =>
+                {
+
+                });
         }
     }
 }
