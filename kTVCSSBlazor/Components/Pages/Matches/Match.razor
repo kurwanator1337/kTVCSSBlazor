@@ -627,8 +627,6 @@
 
         matchLength = "Длительность матча: " + match.MatchLength;
 
-        ParseMatchLog(isMobile);
-
         _aAVGColor = match.ABestPlayer.AVG > match.BBestPlayer.AVG ? moreColor : lessColor;
         _aHSRColor = match.ABestPlayer.HSR > match.BBestPlayer.HSR ? moreColor : lessColor;
         _aKDRColor = match.ABestPlayer.KDR > match.BBestPlayer.KDR ? moreColor : lessColor;
@@ -653,11 +651,194 @@
         dataLoadFinished = true;
 
         isVip = await repo.Vips.IsVip(AuthProvider.CurrentUser.SteamId);
-        isVip = !isVip;
 
         isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
+        
+        if (isAdmin || isVip)
+        {
+            ParseMatchLogAsTicks(isMobile);
+        }
+        else
+        {
+            ParseMatchLog(isMobile);
+        }
 
         NavigationManager.LocationChanged += OnLocationChanged;
+    }
+    
+    private void ParseMatchLogAsTicks(bool mobile)
+    {
+        StringBuilder sb = new StringBuilder();
+        string rowStyle = mobile ? "display: flex;height: 60px;text-wrap: wrap;text-align: center;align-items: center;" : "display: flex;height:40px";
+        string weaponStyle = mobile ? "display: flex;align-items: center;" : "";
+        string weaponHeight = mobile ? "16px" : "24px";
+
+        if (match.IsFinished)
+        {
+            sb.Append($"<div style='{rowStyle}'><div style='color: #cddc39'>Матч окончен! {matchLength}!</div></div>");
+        }
+
+        foreach (var log in match.MatchLog)
+        {
+            if (log.Record.StartsWith("<Round Start>"))
+            {
+                Regex regex = new Regex(@"<(.*?)>\s+\[(.*?)\]");
+                var match = regex.Match(log.Record);
+                if (match.Success)
+                {
+                    string round = match.Groups[1].Value;
+                    var timestamp = match.Groups[2].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #0dde9c'>Начало раунда&nbsp;</div></div>");
+                }
+                continue;
+            }
+            if (log.Record.StartsWith("<Round End>"))
+            {
+                Regex regex = new Regex(@"<(.*?)> (.*?) \[(\d+)-(\d+)\] (.*?) \[(.*?)\]");
+                var match = regex.Match(log.Record);
+                if (match.Success)
+                {
+                    try
+                    {
+                        string aName = match.Groups[2].Value;
+                        string bName = match.Groups[5].Value;
+                        string aScore = match.Groups[3].Value;
+                        string bScore = match.Groups[4].Value;
+                        var timestamp = match.Groups[6].Value;
+                        var timespan = TimeSpan.Parse(timestamp);
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #0dde9c'>Раунд закончился&nbsp;</div><div style='color: #f42f46'>{aName}&nbsp;</div><div style='color: white'>[{aScore}&nbsp-&nbsp{bScore}]&nbsp</div><div style='color: #3399ff'>{bName}&nbsp;</div></div>");
+                    }
+                    catch (Exception)
+                    {
+                        //
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("said:"))
+            {
+                var match = Regex.Match(log.Record, @"^(.*?) <([\w_:\d]+)> said: (.*?) \[([\d:.]+)\]$");
+                if (match.Success)
+                {
+                    var nickname = match.Groups[1].Value;
+                    var steamId = match.Groups[2].Value;
+                    var message = match.Groups[3].Value;
+                    var timestamp = match.Groups[4].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(nickname)).Any())
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #f42f46'>{nickname}:&nbsp;</div><div>{message}</div></div>");
+                    }
+                    else
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #3399ff'>{nickname}:&nbsp;</div><div>{message}</div></div>");
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("> killed "))
+            {
+                var match = Regex.Match(log.Record, @"(.*?)<(.+?)>\s+killed\s+(.*?)<(.+?)>\s+with\s+weapon\s+<(.*?)>\s+(\<.+?\>) \[([\d:.]+)\]$");
+                if (match.Success)
+                {
+                    var timespan = TimeSpan.Parse(match.Groups[7].Value);
+                    var killer = match.Groups[1].Value;
+                    var loser = match.Groups[3].Value;
+                    var weapon = match.Groups[5].Value;
+                    var headshot = match.Groups[6].Value;
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(killer)).Any())
+                    {
+                        if (headshot != "<True>")
+                        {
+                            sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #f42f46'>{killer}&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/weapons/{weapon}.svg'>&nbsp;&nbsp;&nbsp;</div><div style='color: #3399ff'>{loser}&nbsp;</div></div>");
+                        }
+                        else
+                        {
+                            sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #f42f46'>{killer}&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/weapons/{weapon}.svg'>&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/headshot.svg'>&nbsp;&nbsp;</div><div style='color: #3399ff'>{loser}&nbsp;</div></div>");
+                        }
+                    }
+                    else
+                    {
+                        if (headshot != "<True>")
+                        {
+                            sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #3399ff'>{killer}&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/weapons/{weapon}.svg'>&nbsp;&nbsp;&nbsp;</div><div style='color: #f42f46'>{loser}&nbsp;</div></div>");
+                        }
+                        else
+                        {
+                            sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #3399ff'>{killer}&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/weapons/{weapon}.svg'>&nbsp;&nbsp;&nbsp;</div><div style='{weaponStyle}'><img style='height: {weaponHeight}' src='/images/headshot.svg'>&nbsp;&nbsp;</div><div style='color: #f42f46'>{loser}&nbsp;</div></div>");
+                        }
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("made a triple kill!"))
+            {
+                var match = Regex.Match(log.Record, @"(.*?) made a triple kill! \[(.*?)\]");
+                if (match.Success)
+                {
+                    var nickname = match.Groups[1].Value;
+                    var timestamp = match.Groups[2].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(nickname)).Any())
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ffbf00'>ДЕЛАЕТ ТРИПЛ КИЛЛ!</div></div>");
+                    }
+                    else
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ffbf00'>ДЕЛАЕТ ТРИПЛ КИЛЛ!</div></div>");
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("made a quad kill!"))
+            {
+                var match = Regex.Match(log.Record, @"(.*?) made a quad kill! \[(.*?)\]");
+                if (match.Success)
+                {
+                    var nickname = match.Groups[1].Value;
+                    var timestamp = match.Groups[2].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(nickname)).Any())
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ff3a95'>ДЕЛАЕТ КВАДРО КИЛЛ!</div></div>");
+                    }
+                    else
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ff3a95'>ДЕЛАЕТ КВАДРО КИЛЛ!</div></div>");
+                    }
+                }
+                continue;
+            }
+            if (log.Record.Contains("MADE A RAMPAGE!!!"))
+            {
+                var match = Regex.Match(log.Record, @"(.*?) MADE A RAMPAGE!!! \[(.*?)\]");
+                if (match.Success)
+                {
+                    var nickname = match.Groups[1].Value;
+                    var timestamp = match.Groups[2].Value;
+                    var timespan = TimeSpan.Parse(timestamp);
+                    if (this.match.ATeamGrid.Where(x => x.Name.Contains(nickname)).Any())
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #f42f46'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                    }
+                    else
+                    {
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                        sb.Append($"<div style='{rowStyle}'><div style='color: #ffb624'>[{(Math.Round(timespan.TotalSeconds) * 100)}]&nbsp;</div><div style='color: #3399ff'>{nickname}&nbsp;</div><div style='color:#ff0018'>ОФОРМЛЯЕТ ЭЙС!!!</div></div>");
+                    }
+                }
+                continue;
+            }
+        }
+
+        sb.Append($"<div style='{rowStyle}'><div style='color: #cddc39'>{match.AName} (~{match.ATeamAVG}) vs {match.BName} (~{match.BTeamAVG}) на сервере {match.ServerName}!</div></div>");
+        sb.Append($"<div style='{rowStyle}'><div style='color: #cddc39'>Матч начался!</div></div>");
+
+        matchLog = sb.ToString();
     }
 
     private void ParseMatchLog(bool mobile)
@@ -862,7 +1043,14 @@
 
             matchLength = "Длительность матча: " + match.MatchLength;
 
-            ParseMatchLog(isMobile);
+            if (isAdmin || isVip)
+            {
+                ParseMatchLogAsTicks(isMobile);
+            }
+            else
+            {
+                ParseMatchLog(isMobile);
+            }
 
             StateHasChanged();
         }

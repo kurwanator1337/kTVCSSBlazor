@@ -69,7 +69,6 @@
     <Content Remove="Components\Pages\BattleCup.cshtml" />
     <Content Remove="Components\Pages\Players\PlayersT1.razor" />
     <Content Remove="Components\Pages\Players\PlayersT2.razor" />
-    <Content Remove="Components\Pages\Signup.razor" />
     <Content Remove="Components\Pages\Weather.razor" />
   </ItemGroup>
 
