@@ -1,8 +1,7 @@
 ﻿@page "/banslist"
 @using CurrieTechnologies.Razor.SweetAlert2
 @using kTVCSSBlazor.Db.Models.Players
-@inject Db.Interfaces.IPlayers repo
-@inject Db.Interfaces.IAdmins admin
+@inject Db.IRepository repo
 @inject IJSRuntime JS
 @inject IHttpContextAccessor httpContextAccessor
 @inject kTVCSSAuthenticationStateProvider AuthProvider
@@ -85,7 +84,7 @@
             {
                 foreach (var player in selected)
                 {
-                    admin.UnbanPlayer(player.Id, AuthProvider.CurrentUser.Username, result.Value);
+                    repo.Admins.UnbanPlayer(player.Id, AuthProvider.CurrentUser.Username, result.Value);
                 }
 
                 NavigationManager.Refresh(true);
@@ -109,9 +108,9 @@
         if (firstRender)
         {
             JS.InvokeVoidAsync("showLoadBar");
-            dataSource.AddRange(repo.GetBannedList());
+            dataSource.AddRange(repo.Players.GetBannedList());
             JS.InvokeVoidAsync("hideLoadBar");
-            isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+            isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
             if (isAdmin)
             {
                 StateHasChanged();

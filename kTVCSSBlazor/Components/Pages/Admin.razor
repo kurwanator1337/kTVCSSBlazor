@@ -7,12 +7,11 @@
 @using System.Reflection
 @using System.Data
 @using kTVCSSBlazor.Hubs
-@inject Db.Interfaces.IPlayers repo
 @inject IConfiguration configuration
 @inject IJSRuntime JS
 @inject NavigationManager nav
 @inject SweetAlertService Swal
-@inject Db.Interfaces.IAdmins admin
+@inject Db.IRepository repo
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject ILogger<Index> logger
 
@@ -26,7 +25,7 @@
         <MudButton Target="_blank" Href="https://ktvcss.netmeta.tech/enter.php" Variant="Variant.Outlined">Управление игровыми серверами</MudButton>
         <MudButton Target="_blank" Href="https://ktvcss.ru:9090/" Variant="Variant.Outlined">Cockpit</MudButton>
         <MudButton Target="_blank" Href="https://nlhst.com/" Variant="Variant.Outlined">Тимспик</MudButton>
-        <MudButton OnClick="@(() => { admin.RestartAllNodes(AuthProvider.CurrentUser.Username); })" Variant="Variant.Outlined">Перезапустить все ноды</MudButton>
+        <MudButton OnClick="@(() => { repo.Admins.RestartAllNodes(AuthProvider.CurrentUser.Username); })" Variant="Variant.Outlined">Перезапустить все ноды</MudButton>
     </MudStack>
 
     <MudSwitch @bind-Value="@MixesEnabled" Label="Миксы" Color="Color.Info" />
@@ -81,8 +80,8 @@
                             <div style="margin-left: 4%;"><MudButton OnClick="@(() => { ExecuteGameServer(context.Item.Key, "restart"); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Warning">Перезагрузить</MudButton></div>
                             <div style="margin-left: 4%;"><MudButton OnClick="@(() => { ExecuteGameServer(context.Item.Key, "stop"); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Secondary">Остановить</MudButton></div>
                             <div style="margin-left: 4%;"><MudButton OnClick="@(() => { ExecuteGameServer(context.Item.Key, "start"); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Info">Запустить</MudButton></div>
-                            <div style="margin-left: 4%;"><MudButton OnClick="@(() => { admin.SetServerMatch(int.Parse(context.Item.Key.LastOrDefault().ToString()) - 1, AuthProvider.CurrentUser.Username); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Tertiary">Уст. матч</MudButton></div>
-                            <div style="margin-left: 4%;"><MudButton OnClick="@(() => { admin.SetServerMix(int.Parse(context.Item.Key.LastOrDefault().ToString()) - 1, AuthProvider.CurrentUser.Username); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Tertiary">Уст. микс</MudButton></div>
+                            <div style="margin-left: 4%;"><MudButton OnClick="@(() => { repo.Admins.SetServerMatch(int.Parse(context.Item.Key.LastOrDefault().ToString()) - 1, AuthProvider.CurrentUser.Username); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Tertiary">Уст. матч</MudButton></div>
+                            <div style="margin-left: 4%;"><MudButton OnClick="@(() => { repo.Admins.SetServerMix(int.Parse(context.Item.Key.LastOrDefault().ToString()) - 1, AuthProvider.CurrentUser.Username); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Tertiary">Уст. микс</MudButton></div>
                         </CellTemplate>
                     </TemplateColumn>
                 </Columns>
@@ -362,7 +361,7 @@
 
         logger.LogWarning(AuthProvider.CurrentUser.Username + " зашел на страницу админ-панели");
 
-        if (await admin.IsAdmin(steam))
+        if (await repo.Admins.IsAdmin(steam))
         {
             isAdmin = true;
         }

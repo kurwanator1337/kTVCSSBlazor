@@ -1,7 +1,7 @@
 ﻿@page "/camhistory/{PlayerID}"
 @using kTVCSSBlazor.Db.Interfaces
 @using kTVCSSBlazor.Db.Models.Players
-@inject IPlayers repo
+@inject Db.IRepository repo
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 
 @if (AuthProvider.CurrentUser.Id == Convert.ToInt32(PlayerID))
@@ -42,7 +42,7 @@
                             <MudAlert Severity="Severity.Success">Матч #@i.MatchId</MudAlert>
                         }
                         <MudTextField @bind-Value="i.VideoUrl" Label="Ссылка на видеозапись матча" Variant="Variant.Text"></MudTextField>
-                        <MudButton OnClick="@(() => { repo.SaveCam(i); })" Disabled="@(AuthProvider.CurrentUser.Id != Convert.ToInt32(PlayerID))" StartIcon="@Icons.Filled.Save" Variant="Variant.Outlined">Сохранить</MudButton>
+                        <MudButton OnClick="@(() => { repo.Players.SaveCam(i); })" Disabled="@(AuthProvider.CurrentUser.Id != Convert.ToInt32(PlayerID))" StartIcon="@Icons.Filled.Save" Variant="Variant.Outlined">Сохранить</MudButton>
                     </MudStack>
                 </MudPaper>
             </MudItem>
@@ -62,7 +62,7 @@
 
     protected override void OnInitialized()
     {
-        cams = repo.GetCamHistory(Convert.ToInt32(PlayerID));
+        cams = repo.Players.GetCamHistory(Convert.ToInt32(PlayerID));
 
         base.OnInitialized();
     }

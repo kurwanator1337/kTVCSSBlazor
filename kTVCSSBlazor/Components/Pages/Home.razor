@@ -7,14 +7,12 @@
 @using kTVCSSBlazor.Data
 @using kTVCSSBlazor.Db.Models.Matches
 @inject kTVCSSAuthenticationStateProvider AuthProvider
-@inject Db.Interfaces.IUserFeed feed
+@inject Db.IRepository repo
 @inject HubConnection hubConnection
 @inject IHttpContextAccessor http
 @inject IJSRuntime JS
 @inject IToastService toastService
 @inject IHttpContextAccessor httpContextAccessor
-@inject Db.Interfaces.IPlayers repo
-@inject Db.Interfaces.IAdmins admin
 @inject IConfiguration config
 @using Dapper
 @using Microsoft.Data.SqlClient
@@ -373,20 +371,20 @@
 
     private void ToggleLike(int postId)
     {
-        feed.Like(postId, AuthProvider.CurrentUser.Id, true);
-        posts.First(x => x.PostId == postId).Likes = feed.GetPost(postId).Likes;
+        repo.UserFeed.Like(postId, AuthProvider.CurrentUser.Id, true);
+        posts.First(x => x.PostId == postId).Likes = repo.UserFeed.GetPost(postId).Likes;
     }
 
     private void RemovePost(int postId)
     {
         posts.RemoveAll(x => x.PostId == postId);
-        feed.RemovePost(postId);
+        repo.UserFeed.RemovePost(postId);
     }
 
     private void ToggleDislike(int postId)
     {
-        feed.Like(postId, AuthProvider.CurrentUser.Id, false);
-        posts.First(x => x.PostId == postId).Likes = feed.GetPost(postId).Likes;
+        repo.UserFeed.Like(postId, AuthProvider.CurrentUser.Id, false);
+        posts.First(x => x.PostId == postId).Likes = repo.UserFeed.GetPost(postId).Likes;
     }
 
     protected override async Task OnInitializedAsync()
@@ -407,16 +405,16 @@
     {
         if (firstRender)
         {
-            posts.AddRange(feed.GetPosts());
+            posts.AddRange(repo.UserFeed.GetPosts());
 
             JS.InvokeVoidAsync("hideLoadBar");
 
             StateHasChanged();
 
-            isVip = await repo.IsVip(AuthProvider.CurrentUser.SteamId);
-            isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+            isVip = await repo.Vips.IsVip(AuthProvider.CurrentUser.SteamId);
+            isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
 
-            var profile = repo.GetPlayerInfo(AuthProvider.CurrentUser.Id);
+            var profile = repo.Players.GetPlayerInfo(AuthProvider.CurrentUser.Id);
 
             if (profile.MainInfo.Block == 1)
             {
@@ -509,7 +507,7 @@
                 post.IsAdmin = true;
             }
 
-            feed.Add(post);
+            repo.UserFeed.Add(post);
 
             newPostContent = string.Empty;
             uploadedFile = null;
@@ -518,7 +516,7 @@
 
             posts.Clear();
 
-            posts.AddRange(feed.GetPosts());
+            posts.AddRange(repo.UserFeed.GetPosts());
 
             JS.InvokeVoidAsync("hideLoadBar");
 
@@ -550,9 +548,9 @@
                 com.IsAdmin = true;
             }
 
-            feed.AddComment(com, post);
+            repo.UserFeed.AddComment(com, post);
 
-            posts.First(x => x.PostId == post.PostId).Comments = feed.GetPost(post.PostId).Comments;
+            posts.First(x => x.PostId == post.PostId).Comments = repo.UserFeed.GetPost(post.PostId).Comments;
 
             post.NewComment = string.Empty;
         }

@@ -1,0 +1,74 @@
+﻿@page "/BattleCup"
+@using MudBlazor
+@inject NavigationManager Navigation
+
+<MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="mt-5">
+
+    <MudText Typo="Typo.h4" Align="Align.Center">Боевой Кубок</MudText>
+
+    <MudText Class="mt-4" Typo="Typo.subtitle1" Align="Align.Center">
+        До начала турнира: <MudText Typo="Typo.h6">@Countdown</MudText>
+    </MudText>
+
+    <MudText Typo="Typo.subtitle1" Class="my-2" Align="Align.Center">
+        Турнир начнется в 19:45.
+    </MudText>
+
+    <MudText Typo="Typo.body1" Class="my-2" Align="Align.Center">
+        Примите участие в захватывающем турнире и постарайтесь одержать победу!
+    </MudText>
+
+    <MudButton Class="my-2" Variant="Variant.Filled" Color="Color.Primary" OnClick="Register">
+        Участвовать
+    </MudButton>
+
+    <MudPaper Class="mt-4 p-3" Elevation="3">
+        <MudText Typo="Typo.h6" Class="mb-3">Зарегистрированные игроки</MudText>
+        <MudList>
+            @foreach (var player in RegisteredPlayers)
+            {
+                <MudListItem>
+                    <MudText Typo="Typo.body1">@player</MudText>
+                </MudListItem>
+            }
+        </MudList>
+    </MudPaper>
+</MudContainer>
+
+@code {
+    private List<string> RegisteredPlayers = new List<string> { "Игрок 1", "Игрок 2", "Игрок 3" };
+    private string Countdown { get; set; }
+
+    protected override async Task OnInitializedAsync()
+    {
+        var targetTime = DateTime.Today.AddHours(19).AddMinutes(45);
+        if (DateTime.Now > targetTime)
+        {
+            targetTime = targetTime.AddDays(1);
+        }
+
+        while (true)
+        {
+            var currentTime = DateTime.Now;
+            var timeRemaining = targetTime - currentTime;
+            Countdown = $"{timeRemaining.Hours:D2}:{timeRemaining.Minutes:D2}:{timeRemaining.Seconds:D2}";
+            await InvokeAsync(StateHasChanged);
+            await Task.Delay(1000);
+        }
+    }
+
+    private void Register()
+    {
+// Добавьте здесь логику для регистрации игрока
+// Например, можно добавить игрока в список RegisteredPlayers
+
+        string newPlayer = "Новый игрок"; // Это можно заменить на полученное значение, например, из диалогового окна ввода имени игрока
+        if (!RegisteredPlayers.Contains(newPlayer))
+        {
+            RegisteredPlayers.Add(newPlayer);
+        }
+
+        Navigation.NavigateTo("/tournament-registration", true); // Перезагрузка страницы для обновления списка игроков
+    }
+
+}

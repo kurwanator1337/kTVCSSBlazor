@@ -27,29 +27,10 @@ using Alert = kTVCSSBlazor.Db.Models.Players.Alert;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class Players(IConfigurationManager configuration, ILogger logger) : IPlayers
+    public class Players(IConfiguration configuration, ILogger logger) : Context(configuration, logger), IPlayers
     {
-        private SqlConnection Db { get; set; } = new SqlConnection(configuration.GetConnectionString("db"));
         public static MemoryCache MemoryCache = new(new MemoryCacheOptions() { });
         private string ConnectionString { get; set; } = configuration.GetConnectionString("db");
-        private ILogger Logger { get; set; } = logger;
-
-        private void EnsureConnected()
-        {
-            try
-            {
-                if (Db.State != ConnectionState.Open)
-                {
-                    Db = new SqlConnection(Db.ConnectionString);
-                    Db.Open();
-                }
-            }
-            catch (Exception)
-            {
-                Db = new SqlConnection(ConnectionString);
-                EnsureConnected();
-            }
-        }
 
         public List<TotalPlayer> Get()
         {

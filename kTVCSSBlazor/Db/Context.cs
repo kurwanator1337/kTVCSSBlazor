@@ -4,12 +4,13 @@ using System.Data;
 
 namespace kTVCSSBlazor.Db
 {
-    public class Context(string connectionString)
+    public class Context(IConfiguration configuration, ILogger logger)
     {
-        public SqlConnection Db { get; set; } = new SqlConnection(connectionString);
-        public string ConnectionString { get; set; } = connectionString;
+        private IConfiguration Configuration { get; } = configuration;
+        public ILogger Logger { get; set; } = logger;
+        public SqlConnection Db { get; set; } = new SqlConnection(configuration.GetConnectionString("db"));
 
-        private void EnsureConnected()
+        public void EnsureConnected()
         {
             try
             {
@@ -21,7 +22,7 @@ namespace kTVCSSBlazor.Db
             }
             catch (Exception)
             {
-                Db = new SqlConnection(ConnectionString);
+                Db = new SqlConnection(Configuration.GetConnectionString("db"));
                 EnsureConnected();
             }
         }

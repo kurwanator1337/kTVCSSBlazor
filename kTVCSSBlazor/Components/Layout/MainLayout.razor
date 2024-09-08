@@ -22,14 +22,12 @@
 @inject IHttpContextAccessor http
 @inject IJSRuntime JS
 @inject NavigationManager NavigationManager
-@inject Db.Interfaces.IPlayers repo
-@inject Db.Interfaces.IVips vips
+@inject Db.IRepository repo
 @inject IHttpContextAccessor httpContextAccessor
 @inject kTVCSSHub KHub
 @implements IAsyncDisposable
 @inject SweetAlertService Swal
 @inject HubConnection hubConnection
-@inject Db.Interfaces.IAdmins admin
 @inject NotificationService NotificationService
 @inject IToastService toastService
 
@@ -514,7 +512,7 @@ else
             {
                 if (Alerts.Any())
                 {
-                    repo.SupressAlerts(user.Id);
+                    repo.Players.SupressAlerts(user.Id);
                 }
             }
 
@@ -573,7 +571,8 @@ else
             {
                 return;
             }
-            admin.BugReport(user.Id, result.Value);
+            
+            repo.Admins.BugReport(user.Id, result.Value);
 
             toastService.ShowWarning($"Сообщение было отправлено администрации!");
         }
@@ -610,7 +609,7 @@ else
 
         isInSearch = true;
 
-        var id = repo.GetTelegramID(user.Id);
+        var id = repo.Players.GetTelegramID(user.Id);
 
         if (string.IsNullOrEmpty(id))
         {
@@ -639,7 +638,7 @@ else
 
     private async Task OpenFriends()
     {
-        if (await vips.IsPremiumVip(user.SteamId))
+        if (await repo.Vips.IsPremiumVip(user.SteamId))
         {
             NavigationManager.NavigateTo("/friends");
         }
@@ -674,7 +673,7 @@ else
 
             locationChangingSubscription = NavigationManager.RegisterLocationChangingHandler(async cxt =>
             {
-                Alerts = await repo.GetAlerts(user.Id);
+                Alerts = await repo.Players.GetAlerts(user.Id);
 
                 if (hubConnection.State == HubConnectionState.Connecting)
                 {
@@ -705,10 +704,10 @@ else
                 }
             });
 
-            isVip = await repo.IsVip(user.SteamId);
-            isAdmin = await admin.IsAdmin(user.SteamId);
+            isVip = await repo.Vips.IsVip(user.SteamId);
+            isAdmin = await repo.Admins.IsAdmin(user.SteamId);
 
-            Alerts = await repo.GetAlerts(user.Id);
+            Alerts = await repo.Players.GetAlerts(user.Id);
 
             try
             {
@@ -1075,12 +1074,12 @@ else
                     var result = await Swal.FireAsync(options);
                     if (!string.IsNullOrEmpty(result.Value))
                     {
-                        repo.AcceptFriendRequest(me, newFriend.Id);
+                        repo.Players.AcceptFriendRequest(me, newFriend.Id);
                         InvokeAsync(StateHasChanged);
                     }
                     else
                     {
-                        repo.RemoveFriendRequest(me, newFriend.Id);
+                        repo.Players.RemoveFriendRequest(me, newFriend.Id);
                         InvokeAsync(StateHasChanged);
                     }
                 });
@@ -1090,7 +1089,7 @@ else
                     await Task.Delay(500);
                 }
 
-                hasCam = repo.HasCam(user.Id);
+                hasCam = repo.Players.HasCam(user.Id);
 
                 readyToPlay = true;
 
@@ -1266,7 +1265,7 @@ else
 
     private void BuyVIP()
     {
-        var id = repo.GetTelegramID(user.Id);
+        var id = repo.Players.GetTelegramID(user.Id);
 
         if (string.IsNullOrEmpty(id))
         {

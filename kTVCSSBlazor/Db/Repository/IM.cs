@@ -7,11 +7,8 @@ using System.Data;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class IM(string connectionString) : IIM
+    public class IM(IConfiguration configuration, ILogger logger) : Context(configuration, logger), IIM
     {
-        private SqlConnection Db { get; set; } = new SqlConnection(connectionString);
-        private string ConnectionString { get; set; } = connectionString;
-
         public List<DialogItem> GetDialogs(int id)
         {
             List<DialogItem> dialogs = new();
@@ -81,23 +78,6 @@ namespace kTVCSSBlazor.Db.Repository
             EnsureConnected();
 
             Db.Execute($"UPDATE IM SET READED = 1 WHERE FromID = {message.FromID} AND ToID = {message.ToID}");
-        }
-
-        private void EnsureConnected()
-        {
-            try
-            {
-                if (Db.State != ConnectionState.Open)
-                {
-                    Db = new SqlConnection(Db.ConnectionString);
-                    Db.Open();
-                }
-            }
-            catch (Exception)
-            {
-                Db = new SqlConnection(ConnectionString);
-                EnsureConnected();
-            }
         }
     }
 }

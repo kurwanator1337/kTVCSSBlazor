@@ -3,7 +3,7 @@
 @using kTVCSSBlazor.Db.Models;
 @using kTVCSSBlazor.Db.Models.Players
 @using kTVCSSBlazor.Db.Models.Teams
-@inject Db.Interfaces.ITeams repo
+@inject Db.IRepository repo
 @inject IJSRuntime JS
 @inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
 
@@ -52,7 +52,7 @@
         if (firstRender)
         {
             JS.InvokeVoidAsync("showLoadBar");
-            dataSource.AddRange(repo.Get());
+            dataSource.AddRange(repo.Teams.Get());
             JS.InvokeVoidAsync("hideLoadBar");
         }
         base.OnAfterRender(firstRender);

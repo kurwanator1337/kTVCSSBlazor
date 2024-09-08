@@ -2,8 +2,7 @@
 @using CurrieTechnologies.Razor.SweetAlert2
 @using kTVCSSBlazor.Db.Models.Players
 @inject IJSRuntime JS
-@inject Db.Interfaces.IPlayers repo
-@inject Db.Interfaces.ITeams teams
+@inject Db.IRepository repo
 @inject IDialogService DialogService
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @using kTVCSSBlazor.Components.Pages.Players.ProfileItems
@@ -30,7 +29,7 @@
     <MudGrid Justify="Justify.Center">
         <MudItem xs="12" md="8">
             <div>
-                <h3>Чтобы начать играть или всячески взаимодействовать с сайтом, Вам необходимо зайти на сервер, чтобы зарегистрировать и подтвердить Ваш SteamID. Для этого зайдите на сервер <span style="color: #00ff00;"><strong>46.174.48.140:12121</strong></span> и напишите в чат код <span style="text-decoration: underline; color: #ff0000;"><strong>@repo.GetAfterSignupMessage(Convert.ToInt32(PlayerID))</strong></span>. Если Вас кикнет с сервера, значит у Вас все получилось. И не забудьте обновить страницу!</h3>
+                <h3>Чтобы начать играть или всячески взаимодействовать с сайтом, Вам необходимо зайти на сервер, чтобы зарегистрировать и подтвердить Ваш SteamID. Для этого зайдите на сервер <span style="color: #00ff00;"><strong>46.174.48.140:12121</strong></span> и напишите в чат код <span style="text-decoration: underline; color: #ff0000;"><strong>@repo.Players.GetAfterSignupMessage(Convert.ToInt32(PlayerID))</strong></span>. Если Вас кикнет с сервера, значит у Вас все получилось. И не забудьте обновить страницу!</h3>
             </div>
             <MudText Color="Color.Error" Typo="Typo.h6">Пожалуйста, запомните этот код, потому что в случае утери доступа к аккаунту, он потребуется для его восстановления!</MudText>
         </MudItem>
@@ -147,7 +146,7 @@ else
         options.YAxisLines = true;
         mmrHistoryOptions.InterpolationOption = InterpolationOption.NaturalSpline;
 
-        player = repo.GetPlayerInfo(Convert.ToInt32(PlayerID));
+        player = repo.Players.GetPlayerInfo(Convert.ToInt32(PlayerID));
         //player.Description = "Леха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидор";
         series = new List<ChartSeries>();
 
@@ -238,7 +237,7 @@ else
         display = "block";
         displayBar = "none";
 
-        invitedTeam = teams.CheckInvite(player.MainInfo.SteamID);
+        invitedTeam = repo.Teams.CheckInvite(player.MainInfo.SteamID);
 
         JS.InvokeVoidAsync("hideLoadBar");
 

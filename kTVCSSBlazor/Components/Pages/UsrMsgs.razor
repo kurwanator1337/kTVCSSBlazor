@@ -2,7 +2,7 @@
 @using Microsoft.AspNetCore.SignalR.Client
 @using MudBlazor
 @using kTVCSSBlazor.Db.Models.IM
-@inject Db.Interfaces.IIM repo
+@inject Db.IRepository repo
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject HubConnection hubConnection
 @inject NavigationManager nav
@@ -290,7 +290,7 @@
 
         nav.LocationChanged += OnLocationChanged;
 
-        items.AddRange(repo.GetDialogs(me));
+        items.AddRange(repo.IM.GetDialogs(me));
 
         hubConnection.On("GetPrivateMessage", async (string text, int id) =>
                 {
@@ -308,7 +308,7 @@
                             FromAvatar = currentAvatar
                         };
                         messages.Add(msg);
-                        repo.SetMessageReaded(msg);
+                        repo.IM.SetMessageReaded(msg);
                         InvokeAsync(StateHasChanged);
                         ScrollToEnd();
                     }
@@ -372,7 +372,7 @@
         {
             return;
         }
-        repo.SendMessage(me, currentID, message);
+        repo.IM.SendMessage(me, currentID, message);
         messages.Add(new Message()
             {
                 DateTime = DateTime.Now,
@@ -401,7 +401,7 @@
             currentAvatar = (item as DialogItem).Avatar;
             currentOnline = (item as DialogItem).Online;
             messages.Clear();
-            messages.AddRange(repo.GetMessages(me, (item as DialogItem).ID));
+            messages.AddRange(repo.IM.GetMessages(me, (item as DialogItem).ID));
             await Task.Delay(10);
             InvokeAsync(ScrollToEnd);
         }

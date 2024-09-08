@@ -2,7 +2,7 @@
 @using CurrieTechnologies.Razor.SweetAlert2
 @using kTVCSSBlazor.Db.Interfaces
 @inject kTVCSSAuthenticationStateProvider AuthProvider
-@inject IPlayers repo
+@inject Db.IRepository repo
 @inject NavigationManager NavigationManager
 @inject SweetAlertService Swal
 
@@ -37,7 +37,7 @@
 
     private async Task Agree()
     {
-        repo.SetLCReaded(AuthProvider.CurrentUser.Id);
+        repo.Players.SetLCReaded(AuthProvider.CurrentUser.Id);
 
         await ShowAlert("Готово", "Теперь можете запускать поиск игры!", 5000, SweetAlertIcon.Success, async () =>
         {

@@ -7,8 +7,7 @@
 @using kTVCSSBlazor.Db.Models;
 @using kTVCSSBlazor.Db.Models.Players
 @using kTVCSSBlazor.Hubs
-@inject Db.Interfaces.IPlayers repo
-@inject Db.Interfaces.IAdmins admin
+@inject Db.IRepository repo
 @inject IJSRuntime JS
 @inject IHttpContextAccessor httpContextAccessor
 @inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
@@ -17,7 +16,6 @@
 @inject NavigationManager nav
 @inject SweetAlertService Swal
 @inject IToastService toastService
-@inject IIM msgc
 
 <PageTitle>kTVCSS @@ Онлайн игроки</PageTitle>
 
@@ -96,13 +94,13 @@
                     <CellTemplate>
                         @if (Id != context.Item.Id)
                         {
-                            @if (!repo.IsFriend(Id, context.Item.Id))
+                            @if (!repo.Players.IsFriend(Id, context.Item.Id))
                             {
-                                <MudButton OnClick="@(() => { repo.AddFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Success">Добавить в друзья</MudButton>
+                                <MudButton OnClick="@(() => { repo.Players.AddFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Success">Добавить в друзья</MudButton>
                             }
                             else
                             {
-                                <MudButton OnClick="@(() => { repo.RemoveFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">Удалить из друзей</MudButton>
+                                <MudButton OnClick="@(() => { repo.Players.RemoveFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">Удалить из друзей</MudButton>
                             }
                         }
                         else
@@ -167,13 +165,13 @@
                     <CellTemplate>
                         @if (Id != context.Item.Id)
                         {
-                            @if (!repo.IsFriend(Id, context.Item.Id))
+                            @if (!repo.Players.IsFriend(Id, context.Item.Id))
                             {
-                                <MudButton OnClick="@(() => { repo.AddFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Success">Добавить в друзья</MudButton>
+                                <MudButton OnClick="@(() => { repo.Players.AddFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Success">Добавить в друзья</MudButton>
                             }
                             else
                             {
-                                <MudButton OnClick="@(() => { repo.RemoveFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">Удалить из друзей</MudButton>
+                                <MudButton OnClick="@(() => { repo.Players.RemoveFriend(Id, context.Item.Id); })" Size="@Size.Small" Variant="@Variant.Text" Color="@Color.Error">Удалить из друзей</MudButton>
                             }
                         }
                         else
@@ -254,7 +252,7 @@ else
 
             await hubConnection.SendAsync("SendDM", me.Username, me.Id, user, result.Value);
 
-            msgc.SendMessage(me.Id, user, result.Value);
+            repo.IM.SendMessage(me.Id, user, result.Value);
 
             toastService.ShowSuccess($"Сообщение было отправлено!");
         }
@@ -272,8 +270,8 @@ else
 
         Id = AuthProvider.CurrentUser.Id;
 
-        isVip = await repo.IsVip(me.SteamId);
-        isAdmin = await admin.IsAdmin(me.SteamId);
+        isVip = await repo.Players.IsVip(me.SteamId);
+        isAdmin = await repo.Admins.IsAdmin(me.SteamId);
 
         connectionID = hubConnection.State == HubConnectionState.Connected ? hubConnection.ConnectionId : null;
 
@@ -297,7 +295,7 @@ else
             {
                 JS.InvokeVoidAsync("showLoadBar");
                 dataSource.Clear();
-                dataSource.AddRange(repo.GetOnlinePlayers());
+                dataSource.AddRange(repo.Players.GetOnlinePlayers());
                 JS.InvokeVoidAsync("hideLoadBar");
 
                 InvokeAsync(StateHasChanged);
@@ -323,7 +321,7 @@ else
         if (firstRender)
         {
             JS.InvokeVoidAsync("showLoadBar");
-            dataSource.AddRange(repo.GetOnlinePlayers());
+            dataSource.AddRange(repo.Players.GetOnlinePlayers());
             JS.InvokeVoidAsync("hideLoadBar");
         }
         base.OnAfterRender(firstRender);

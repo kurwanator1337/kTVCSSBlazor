@@ -6,28 +6,8 @@ using System.Data.SqlClient;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class FAQ(string connectionString) : IFAQ
+    public class FAQ(IConfiguration configuration, ILogger logger) : Context(configuration, logger), IFAQ
     {
-        private SqlConnection Db { get; set; } = new SqlConnection(connectionString);
-        private string ConnectionString { get; set; } = connectionString;
-
-        private void EnsureConnected()
-        {
-            try
-            {
-                if (Db.State != ConnectionState.Open)
-                {
-                    Db = new SqlConnection(Db.ConnectionString);
-                    Db.Open();
-                }
-            }
-            catch (Exception)
-            {
-                Db = new SqlConnection(ConnectionString);
-                EnsureConnected();
-            }
-        }
-
         public List<Model> Get()
         {
             EnsureConnected();

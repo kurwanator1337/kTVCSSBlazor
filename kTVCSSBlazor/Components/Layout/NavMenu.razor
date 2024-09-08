@@ -1,5 +1,4 @@
-﻿@inject Db.Interfaces.IIM repo
-@inject kTVCSSAuthenticationStateProvider AuthProvider
+﻿@inject kTVCSSAuthenticationStateProvider AuthProvider
 
 <MudNavMenu>
     <MudNavLink Href="" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Главная</MudNavLink>
@@ -43,7 +42,7 @@
 
     protected override void OnInitialized()
     {
-        var count = repo.GetUnreadedCount(AuthProvider.CurrentUser.Id);
+        var count = 0;
 
         UnreadedCount = count == 0 ? "" : $"[{count}]";
 

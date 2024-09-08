@@ -2,8 +2,7 @@
 @using kTVCSSBlazor.Data
 @using kTVCSSBlazor.Db.Models;
 @using kTVCSSBlazor.Db.Models.Players
-@inject Db.Interfaces.IPlayers repo
-@inject Db.Interfaces.IModerators moder
+@inject Db.IRepository repo
 @inject IJSRuntime JS
 @inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
 @inject IHttpContextAccessor httpContextAccessor
@@ -57,21 +56,6 @@
             <PropertyColumn Property="x => x.Wons" Title="Победы" CellStyle="width: 50px" />
             <PropertyColumn Property="x => x.Losts" Title="Поражения" CellStyle="width: 50px" />
             <PropertyColumn Property="x => x.Winrate" Title="Винрейт" CellStyle="width: 50px" />
-            @if (isModerator)
-            {
-                <TemplateColumn CellClass="d-flex justify-end">
-                    <CellTemplate>
-                        @if (context.Item.Tier == 1)
-                        {
-                            <MudButton OnClick="@(() => { moder.SetTier(kTVCSSAuthenticationStateProvider.CurrentUser.Username, context.Item.Id, 2); dataSource.Where(x => x.Id == context.Item.Id).First().Tier = 2; StateHasChanged(); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Error">Убрать в T2</MudButton>
-                        }
-                        @if (context.Item.Tier == 2)
-                        {
-                            <MudButton OnClick="@(() => { moder.SetTier(kTVCSSAuthenticationStateProvider.CurrentUser.Username, context.Item.Id, 1); dataSource.Where(x => x.Id == context.Item.Id).First().Tier = 1; StateHasChanged(); })" Size="@Size.Small" Variant="@Variant.Filled" Color="@Color.Success">Взять в T1</MudButton>
-                        }
-                    </CellTemplate>
-                </TemplateColumn>
-            }
         </Columns>
     </MudDataGrid>
 }
@@ -116,8 +100,6 @@ else
         {
             isMobile = true;
         }
-
-        isModerator = await moder.IsModerator(kTVCSSAuthenticationStateProvider.CurrentUser.Id);
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -125,7 +107,7 @@ else
         if (firstRender)
         {
             JS.InvokeVoidAsync("showLoadBar");
-            dataSource.AddRange(repo.Get());
+            dataSource.AddRange(repo.Players.Get());
             JS.InvokeVoidAsync("hideLoadBar");
         }
         base.OnAfterRender(firstRender);

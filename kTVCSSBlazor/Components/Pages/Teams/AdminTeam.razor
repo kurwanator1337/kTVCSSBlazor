@@ -3,11 +3,9 @@
 @using kTVCSSBlazor.Db.Models.Teams
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
-@inject Db.Interfaces.ITeams repo
-@inject Db.Interfaces.IAdmins admin
+@inject Db.IRepository repo
 @inject NavigationManager NavigationManager
 @inject SweetAlertService Swal
-
 
 <PageTitle>kTVCSS @@ Редактирование профиля команды</PageTitle>
 
@@ -134,13 +132,13 @@
 
     protected override async Task OnInitializedAsync()
     {
-        profile = repo.GetTeamForEdit(Convert.ToInt32(TeamID));
+        profile = repo.Teams.GetTeamForEdit(Convert.ToInt32(TeamID));
 
-        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+        isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
 
         if (isAdmin)
         {
-            teamPageData = repo.GetTeamByID(Convert.ToInt32(TeamID));
+            teamPageData = repo.Teams.GetTeamByID(Convert.ToInt32(TeamID));
 
             var a = teamPageData.Achiviments;
 
@@ -155,10 +153,10 @@
     {
         if (isAdmin)
         {
-            repo.SaveTeamAchiviments(Convert.ToInt32(TeamID), ach);
+            repo.Teams.SaveTeamAchiviments(Convert.ToInt32(TeamID), ach);
         }
 
-        int result = repo.SaveTeam(profile);
+        int result = repo.Teams.SaveTeam(profile);
 
         if (result == 1)
         {

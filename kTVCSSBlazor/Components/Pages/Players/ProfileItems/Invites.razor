@@ -1,7 +1,7 @@
 ﻿@using CurrieTechnologies.Razor.SweetAlert2
 @using kTVCSSBlazor.Db.Models.Players
 @inject NavigationManager NavigationManager
-@inject Db.Interfaces.ITeams teams
+@inject Db.IRepository repo
 @inject SweetAlertService Swal
 
 <MudGrid Class="d-flex-column align-center justify-center" Justify="Justify.Center">
@@ -41,7 +41,7 @@
 
     private async Task Accept()
     {
-        var a = teams.AcceptInvite(player.MainInfo.SteamID);
+        var a = repo.Teams.AcceptInvite(player.MainInfo.SteamID);
         if (a == 0)
         {
             await ShowAlert("Ошибка", "Состав команды уже полный, Вы не можете вступить в команду!", 3000, SweetAlertIcon.Error, null);
@@ -58,7 +58,7 @@
 
     private async Task Decline()
     {
-        teams.DeclineInvite(player.MainInfo.SteamID);
+        repo.Teams.DeclineInvite(player.MainInfo.SteamID);
         await ShowAlert("Успех", "Вы отклонили заявку!", 3000, SweetAlertIcon.Info, async () =>
             {
                 NavigationManager.NavigateTo("/myprofile", true);

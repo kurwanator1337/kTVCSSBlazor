@@ -3,13 +3,12 @@
 @using kTVCSSBlazor.Db.Models.Players
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
-@inject Db.Interfaces.IPlayers repo
+@inject Db.IRepository repo
 @inject ISnackbar snackbar
 @inject IDialogService DialogService
 @using kTVCSSBlazor.Components.Pages.Players.ProfileItems
 @using kTVCSSBlazor.Db.Interfaces
 @inject NavigationManager nav
-@inject IAdmins admin
 
 <PageTitle>kTVCSS @@ @player.MainInfo.Name</PageTitle>
 
@@ -121,14 +120,14 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+        isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
         
         string[] colors = { "var(--mud-palette-success)", "var(--mud-palette-error)" };
         options.ChartPalette = colors;
         options.YAxisLines = true;
         mmrHistoryOptions.InterpolationOption = InterpolationOption.NaturalSpline;
 
-        player = repo.GetPlayerInfo(Convert.ToInt32(PlayerID));
+        player = repo.Players.GetPlayerInfo(Convert.ToInt32(PlayerID));
         //player.Description = "Леха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидорЛеха пидор";
         series = new List<ChartSeries>();
 

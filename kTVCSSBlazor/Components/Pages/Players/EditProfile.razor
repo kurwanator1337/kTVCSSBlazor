@@ -4,7 +4,7 @@
 @using kTVCSSBlazor.Db.Models.Players
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
-@inject Db.Interfaces.IPlayers repo
+@inject Db.IRepository repo
 @inject NavigationManager NavigationManager
 @inject SweetAlertService Swal
 
@@ -243,10 +243,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        profile = repo.GetProfile(AuthProvider.CurrentUser.Id);
-        info = repo.GetPlayerInfo(AuthProvider.CurrentUser.Id);
+        profile = repo.Players.GetProfile(AuthProvider.CurrentUser.Id);
+        info = repo.Players.GetPlayerInfo(AuthProvider.CurrentUser.Id);
 
-        isVip = await repo.IsVip(AuthProvider.CurrentUser.SteamId);
+        isVip = await repo.Vips.IsVip(AuthProvider.CurrentUser.SteamId);
 
         if (!string.IsNullOrEmpty(profile.Telegram))
         {
@@ -284,7 +284,7 @@
                 return;
             }
         }
-        string result = repo.SaveProfile(profile, AuthProvider.CurrentUser.Id);
+        string result = repo.Players.SaveProfile(profile, AuthProvider.CurrentUser.Id);
         string trypass = profile.Password;
         if (profile.Password.Length != 32)
         {

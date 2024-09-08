@@ -9,36 +9,11 @@ using static MudBlazor.Colors;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class Teams : ITeams
+    public class Teams : Context, ITeams
     {
-        private SqlConnection Db { get; set; }
-        private string ConnectionString { get; set; }
-        private ILogger logger { get; set; }
-
-        public Teams(string connectionString, ILogger logger)
+        public Teams(IConfiguration configuration, ILogger logger) : base(configuration, logger)
         {
-            Db = new SqlConnection(connectionString);
-            ConnectionString = connectionString;
-            logger = logger;
-
             TeamsAutoDeletion();
-        }
-
-        private void EnsureConnected()
-        {
-            try
-            {
-                if (Db.State != ConnectionState.Open)
-                {
-                    Db = new SqlConnection(Db.ConnectionString);
-                    Db.Open();
-                }
-            }
-            catch (Exception)
-            {
-                Db = new SqlConnection(ConnectionString);
-                EnsureConnected();
-            }
         }
 
         public List<Team> Get()
@@ -217,7 +192,7 @@ namespace kTVCSSBlazor.Db.Repository
             dynamicParameters.Add("STEAMID", steam);
             return ExecuteStoredProcedureWithReturnValue<int>("TeamsRemovePlayer", dynamicParameters);
 
-            logger.LogDebug($"{steam} был исключен из команды #{id}");
+            Logger.LogDebug($"{steam} был исключен из команды #{id}");
         }
 
         public int MakeInvite(string captain, string invited)

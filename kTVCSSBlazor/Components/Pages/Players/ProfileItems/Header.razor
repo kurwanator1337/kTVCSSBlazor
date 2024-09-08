@@ -5,17 +5,12 @@
 @using kTVCSSBlazor.Db.Interfaces
 @using kTVCSSBlazor.Db.Models.Players
 @using kTVCSSBlazor.Hubs
-@inject Db.Interfaces.IPlayers repo
-@inject Db.Interfaces.ITeams teams
-@inject Db.Interfaces.IVips vip
 @inject NavigationManager NavigationManager
 @inject ClipboardService ClipboardService
 @inject SweetAlertService Swal
 @inject HubConnection hubConnection
-@inject Db.Interfaces.IAdmins admin
-@inject Db.Interfaces.IModerators moder
 @inject IToastService toastService
-@inject IIM msgc
+@inject Db.IRepository repo
 
 <MudGrid Justify="Justify.Center">
     <MudItem xs="12" md="12">
@@ -111,20 +106,20 @@
                 @if (@AuthProvider.CurrentUser.Id != Convert.ToInt32(Id))
                 {
                     <MudButton OnClick="@(async () => { await SendPrivateMessage(int.Parse(Id)); })" Style="font-size: 0.8em;" Variant="@Variant.Text" StartIcon="@Icons.Material.Filled.Message" Color="@Color.Info">Написать</MudButton>
-                    if (teams.IsPlayerCaptain(AuthProvider.CurrentUser.SteamId))
+                    if (repo.Teams.IsPlayerCaptain(AuthProvider.CurrentUser.SteamId))
                     {
                         if (string.IsNullOrEmpty(player.TeamInfo.ID))
                         {
-                            <MudButton OnClick="() => { teams.MakeInvite(AuthProvider.CurrentUser.SteamId, player.MainInfo.SteamID); ShowAlert(add); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AddBusiness" Color="Color.Primary">Пригласить в команду</MudButton>
+                            <MudButton OnClick="() => { repo.Teams.MakeInvite(AuthProvider.CurrentUser.SteamId, player.MainInfo.SteamID); ShowAlert(add); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AddBusiness" Color="Color.Primary">Пригласить в команду</MudButton>
                         }
                     }
-                    if (repo.IsFriend(AuthProvider.CurrentUser.Id, Convert.ToInt32(Id)))
+                    if (repo.Players.IsFriend(AuthProvider.CurrentUser.Id, Convert.ToInt32(Id)))
                     {
-                        <MudButton OnClick="() => { repo.RemoveFriend(AuthProvider.CurrentUser.Id, Convert.ToInt32(Id)); ShowAlert(cancel); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.RemoveCircle" Color="Color.Primary">Удалить из друзей</MudButton>
+                        <MudButton OnClick="() => { repo.Players.RemoveFriend(AuthProvider.CurrentUser.Id, Convert.ToInt32(Id)); ShowAlert(cancel); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.RemoveCircle" Color="Color.Primary">Удалить из друзей</MudButton>
                     }
                     else
                     {
-                        <MudButton OnClick="() => { var t = repo.AddFriend(AuthProvider.CurrentUser.Id, Convert.ToInt32(Id)); if (t) ShowAlert(add); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary">Добавить в друзья</MudButton>
+                        <MudButton OnClick="() => { var t = repo.Players.AddFriend(AuthProvider.CurrentUser.Id, Convert.ToInt32(Id)); if (t) ShowAlert(add); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Add" Color="Color.Primary">Добавить в друзья</MudButton>
                     }
                 }
                 @if (isVip)
@@ -158,11 +153,11 @@
                     }
                     if (!isModer)
                     {
-                        <MudButton OnClick="@(() => { admin.SetModerator(player.MainInfo.Id, AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AddModerator" Color="Color.Success">Назначить модератором</MudButton>
+                        <MudButton OnClick="@(() => { repo.Admins.SetModerator(player.MainInfo.Id, AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.AddModerator" Color="Color.Success">Назначить модератором</MudButton>
                     }
                     else
                     {
-                        <MudButton OnClick="@(() => { admin.RemoveModerator(player.MainInfo.Id, AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.RemoveModerator" Color="Color.Error">Убрать модератора</MudButton>
+                        <MudButton OnClick="@(() => { repo.Admins.RemoveModerator(player.MainInfo.Id, AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); })" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.RemoveModerator" Color="Color.Error">Убрать модератора</MudButton>
                     }
                     <MudButton OnClick="() => { OpenTeamEditAsAdmin(); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Edit" Color="Color.Primary">Редактировать профиль (admin)</MudButton>
                 }
@@ -261,7 +256,7 @@
 
             await hubConnection.SendAsync("SendDM", myself.Username, myself.Id, user, result.Value);
 
-            msgc.SendMessage(myself.Id, user, result.Value);
+            repo.IM.SendMessage(myself.Id, user, result.Value);
 
             toastService.ShowSuccess($"Сообщение было отправлено!");
         }
@@ -269,12 +264,12 @@
 
     protected override async Task OnInitializedAsync()
     {
-        isVip = await repo.IsVip(AuthProvider.CurrentUser.SteamId);
-        isPremiumVip = await vip.IsPremiumVip(AuthProvider.CurrentUser.SteamId);
-        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
-        itIsAdmin = await admin.IsAdmin(player.MainInfo.SteamID);
-        itIsVip = await repo.IsVip(player.MainInfo.SteamID);
-        isModer = await moder.IsModerator(Convert.ToInt32(Id));
+        isVip = await repo.Vips.IsVip(AuthProvider.CurrentUser.SteamId);
+        isPremiumVip = await repo.Vips.IsPremiumVip(AuthProvider.CurrentUser.SteamId);
+        isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
+        itIsAdmin = await repo.Admins.IsAdmin(player.MainInfo.SteamID);
+        itIsVip = await repo.Vips.IsVip(player.MainInfo.SteamID);
+        isModer = await repo.Moderators.IsModerator(Convert.ToInt32(Id));
         myself = AuthProvider.CurrentUser;
     }
 
@@ -296,7 +291,7 @@
                 ShowAlert("Поле не может быть пустым!");
                 return;
             }
-            admin.SetMMR(player.MainInfo.Id, AuthProvider.CurrentUser.Username, int.Parse(result.Value));
+            repo.Admins.SetMMR(player.MainInfo.Id, AuthProvider.CurrentUser.Username, int.Parse(result.Value));
             NavigationManager.Refresh(true);
         }
     }
@@ -319,7 +314,7 @@
                 ShowAlert("Поле не может быть пустым!");
                 return;
             }
-            admin.UnbanPlayer(player.MainInfo.Id, AuthProvider.CurrentUser.Username, result.Value);
+            repo.Admins.UnbanPlayer(player.MainInfo.Id, AuthProvider.CurrentUser.Username, result.Value);
         }
 
         NavigationManager.Refresh(true);
@@ -343,7 +338,7 @@
                 ShowAlert("Поле не может быть пустым!");
                 return;
             }
-            admin.UnbanRequest(player.MainInfo.Id, result.Value);
+            repo.Admins.UnbanRequest(player.MainInfo.Id, result.Value);
         }
 
         ShowAlert("Заявка была отправлена!");
@@ -426,7 +421,7 @@
         }
         else
         {
-            repo.MakeReport(me, Convert.ToInt32(Id), text + " - " + result.Value);
+            repo.Players.MakeReport(me, Convert.ToInt32(Id), text + " - " + result.Value);
 
             ShowAlert("Жалоба была отправлена!");
         }
@@ -436,7 +431,7 @@
         string me = AuthProvider.CurrentUser.Username;
         string reason = banReason;
 
-        admin.BanPlayer(Convert.ToInt32(Id), reason, me);
+        repo.Admins.BanPlayer(Convert.ToInt32(Id), reason, me);
 
         NavigationManager.Refresh(true);
 
@@ -453,7 +448,7 @@
     {
         if (isPremiumVip)
         {
-            if (await vip.ResetFullStats(Convert.ToInt32(Id)))
+            if (await repo.Vips.ResetFullStats(Convert.ToInt32(Id)))
             {
                 await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
                     {
@@ -470,7 +465,7 @@
         }
         else
         {
-            if (await vip.ResetStats(Convert.ToInt32(Id)))
+            if (await repo.Vips.ResetStats(Convert.ToInt32(Id)))
             {
                 await ShowAlert("Успех", "Статистика была успешно очищена!", 3000, SweetAlertIcon.Success, async () =>
                     {

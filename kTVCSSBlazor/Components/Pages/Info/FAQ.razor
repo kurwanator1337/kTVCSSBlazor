@@ -1,6 +1,6 @@
 ﻿@page "/faq"
 @using MudBlazor
-@inject Db.Interfaces.IFAQ faq
+@inject Db.IRepository repo
 @using kTVCSSBlazor.Db.Models.FAQ
 
 <PageTitle>kTVCSS @@ FAQ</PageTitle>
@@ -33,7 +33,7 @@
 
     protected override Task OnInitializedAsync()
     {
-        data = faq.Get();
+        data = repo.FAQ.Get();
 
         return base.OnInitializedAsync();
     }

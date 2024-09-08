@@ -1,6 +1,6 @@
 ﻿@page "/matches"
 @using kTVCSSBlazor.Db.Models.Matches
-@inject Db.Interfaces.IMatches repo
+@inject Db.IRepository repo
 @inject IHttpContextAccessor httpContextAccessor
 @inject IJSRuntime JS
 @inject NavigationManager nav
@@ -113,7 +113,7 @@ else
         if (firstRender)
         {
             JS.InvokeVoidAsync("showLoadBar");
-            dataSource.AddRange(repo.GetTotalMatches());
+            dataSource.AddRange(repo.Matches.GetTotalMatches());
             JS.InvokeVoidAsync("hideLoadBar");
         }
 

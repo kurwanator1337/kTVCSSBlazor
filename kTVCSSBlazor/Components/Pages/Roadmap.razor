@@ -39,12 +39,9 @@
 
     protected override void OnInitialized()
     {
-        using (var sql = new SqlConnection(db.ConnectionString))
-        {
-            sql.Open();
-
-            items.AddRange(sql.Query<RoadmapItem>("SELECT * FROM Roadmap ORDER BY DateTime ASC"));
-        }
+        db.EnsureConnected();
+        
+        items.AddRange(db.Db.Query<RoadmapItem>("SELECT * FROM Roadmap ORDER BY DateTime ASC"));
 
         base.OnInitialized();
     }

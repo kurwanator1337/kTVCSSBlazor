@@ -1,7 +1,7 @@
 ﻿@page "/fft"
 @using kTVCSSBlazor.Data
 @using kTVCSSBlazor.Db.Models
-@inject Db.Interfaces.IPlayers repo
+@inject Db.IRepository repo
 @inject IJSRuntime JS
 @inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
 @inject IHttpContextAccessor httpContextAccessor
@@ -77,7 +77,7 @@
     protected override void OnAfterRender(bool firstRender)
     {
         JS.InvokeVoidAsync("showLoadBar");
-        dataSource.AddRange(repo.GetFftList());
+        dataSource.AddRange(repo.Players.GetFftList());
         JS.InvokeVoidAsync("hideLoadBar");
         base.OnAfterRender(firstRender);
     }

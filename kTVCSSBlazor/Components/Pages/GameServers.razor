@@ -2,7 +2,7 @@
 @using System.Net
 @using kTVCSSBlazor.Data
 @using kTVCSSBlazor.Db.Models;
-@inject Db.Interfaces.IGameServers repo
+@inject Db.IRepository repo
 @inject IJSRuntime JS
 @inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
 
@@ -45,8 +45,7 @@
 
     protected override Task OnInitializedAsync()
     {
-        dataSource = repo.Get();
-
+        dataSource = repo.GameServers.Get();
         return base.OnInitializedAsync();
     }
 }

@@ -6,8 +6,7 @@
 @using kTVCSSBlazor.Db.Models.Players
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
-@inject Db.Interfaces.IHighlights repo
-@inject Db.Interfaces.IPlayers vips
+@inject Db.IRepository repo
 @inject ISnackbar snackbar
 @inject IDialogService DialogService
 @using kTVCSSBlazor.Components.Pages.Players.ProfileItems
@@ -115,7 +114,7 @@
         {
             var user = await AuthProvider.GetUserFromDataBase();
 
-            if (!await vips.IsVip(user.SteamId))
+            if (!await repo.Vips.IsVip(user.SteamId))
             {
                 ShowAlert("Хорошая попытка, но нет", "Вы не являетесь VIP пользователем!", 3000, SweetAlertIcon.Error, async () => { });
                 JS.InvokeVoidAsync("hideLoadBar");
@@ -123,7 +122,7 @@
                 return;
             }
 
-            results = await repo.GetByPlayer(Convert.ToInt32(PlayerID), user.SteamId);
+            results = await repo.Highlights.GetByPlayer(Convert.ToInt32(PlayerID), user.SteamId);
 
             JS.InvokeVoidAsync("hideLoadBar");
 

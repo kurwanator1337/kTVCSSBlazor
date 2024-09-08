@@ -8,30 +8,8 @@ using Telegram.Bot.Types.Enums;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class Vips(IConfiguration configuration, ILogger logger) : IVips
+    public class Vips(IConfiguration configuration, ILogger logger) : Context(configuration, logger), IVips
     {
-        private SqlConnection Db { get; set; } = new SqlConnection(configuration.GetConnectionString("db"));
-        private IConfiguration configuration = configuration;
-        private string ConnectionString { get; set; } = configuration.GetConnectionString("db");
-        private ILogger Logger { get; set; } = logger;
-
-        private void EnsureConnected()
-        {
-            try
-            {
-                if (Db.State != ConnectionState.Open)
-                {
-                    Db = new SqlConnection(Db.ConnectionString);
-                    Db.Open();
-                }
-            }
-            catch (Exception)
-            {
-                Db = new SqlConnection(ConnectionString);
-                EnsureConnected();
-            }
-        }
-
         private async Task<bool> GetInfoFromTelegram(long userId)
         {
             string token = configuration.GetValue<string>("tgBotToken");
@@ -62,7 +40,7 @@ namespace kTVCSSBlazor.Db.Repository
             try
             {
                 TelegramBotClient botClient = new TelegramBotClient(token);
-                var chat = await botClient.GetChatMemberAsync(new ChatId(-1002359074161), userId);
+                var chat = await botClient.GetChatMemberAsync(new ChatId(-1002355396885), userId);
                 if (chat.User != null)
                 {
                     if (chat.Status == ChatMemberStatus.Member || chat.Status == ChatMemberStatus.Restricted)

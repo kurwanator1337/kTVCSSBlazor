@@ -3,8 +3,7 @@
 @using kTVCSSBlazor.Db.Models.Teams
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
-@inject Db.Interfaces.ITeams repo
-@inject Db.Interfaces.IAdmins admin
+@inject Db.IRepository repo
 @inject NavigationManager NavigationManager
 @inject SweetAlertService Swal
 
@@ -118,14 +117,14 @@
 
     protected override async Task OnInitializedAsync()
     {
-        profile = repo.GetTeamForEdit(Convert.ToInt32(AuthProvider.CurrentUser.TeamID));
+        profile = repo.Teams.GetTeamForEdit(Convert.ToInt32(AuthProvider.CurrentUser.TeamID));
 
-        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+        isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
     }
 
     private async Task Save()
     {
-        int result = repo.SaveTeam(profile);
+        int result = repo.Teams.SaveTeam(profile);
 
         if (result == 1)
         {

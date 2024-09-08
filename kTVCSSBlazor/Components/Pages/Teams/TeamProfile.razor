@@ -3,13 +3,12 @@
 @using kTVCSSBlazor.Db.Models.Teams
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
-@inject Db.Interfaces.ITeams repo
+@inject Db.IRepository repo
 @inject SweetAlertService Swal
 @inject IDialogService DialogService
 @inject IHttpClientFactory ClientFactory
 @inject NavigationManager NavigationManager
 @inject IHttpContextAccessor httpContextAccessor
-@inject Db.Interfaces.IAdmins admin
 
 <kTVCSSBlazor.Components.Layout.Bar display="block" />
 <PageTitle>kTVCSS @@ Профиль команды @data.Info.Name</PageTitle>
@@ -65,11 +64,11 @@
                 {
                     if (data.Info.BlockEdit == 0)
                     {
-                        <MudButton OnClick="() => { admin.BlockTeam(Convert.ToInt32(TeamID), AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Lock" Color="Color.Secondary">Заблокировать состав</MudButton>
+                        <MudButton OnClick="() => { repo.Admins.BlockTeam(Convert.ToInt32(TeamID), AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.Lock" Color="Color.Secondary">Заблокировать состав</MudButton>
                     }
                     else
                     {
-                        <MudButton OnClick="() => { admin.UnBlockTeam(Convert.ToInt32(TeamID), AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.LockOpen" Color="Color.Success">Разблокировать состав</MudButton>
+                        <MudButton OnClick="() => { repo.Admins.UnBlockTeam(Convert.ToInt32(TeamID), AuthProvider.CurrentUser.Username); NavigationManager.Refresh(true); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.LockOpen" Color="Color.Success">Разблокировать состав</MudButton>
                     }
                 }
                 @if (AuthProvider.CurrentUser.SteamId == data.Info.CapSteamID)
@@ -256,7 +255,7 @@ else
 
     private async Task DeleteTeam()
     {
-        var result = repo.DeleteTeam(Convert.ToInt32(TeamID), data.Info.CapSteamID);
+        var result = repo.Teams.DeleteTeam(Convert.ToInt32(TeamID), data.Info.CapSteamID);
         if (result == 1)
         {
             await ShowAlert("Ошибка", "Редактирование составов на данный момент запрещено!", 3000, SweetAlertIcon.Error, null);
@@ -273,7 +272,7 @@ else
 
     private async Task LeaveTeam()
     {
-        var result = repo.LeaveTeam(AuthProvider.CurrentUser.SteamId);
+        var result = repo.Teams.LeaveTeam(AuthProvider.CurrentUser.SteamId);
         if (result == 0)
         {
             await ShowAlert("Ошибка", "Редактирование составов на данный момент запрещено!", 3000, SweetAlertIcon.Error, null);
@@ -290,7 +289,7 @@ else
 
     private async Task KickPlayer(string steam)
     {
-        var result = repo.LeaveTeam(steam);
+        var result = repo.Teams.LeaveTeam(steam);
         if (result == 0)
         {
             await ShowAlert("Ошибка", "Редактирование составов на данный момент запрещено!", 3000, SweetAlertIcon.Error, null);
@@ -321,7 +320,7 @@ else
             // memberCardMargin = "margin-bottom: 2%";
         }
 
-        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+        isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
     }
 
     protected override void OnAfterRender(bool firstRender)
@@ -330,7 +329,7 @@ else
         {
             JS.InvokeVoidAsync("showLoadBar");
 
-            var team = repo.GetTeamByID(Convert.ToInt32(TeamID));
+            var team = repo.Teams.GetTeamByID(Convert.ToInt32(TeamID));
 
             var captain = team.Members.FirstOrDefault(x => x.SteamID == team.Info.CapSteamID);
 

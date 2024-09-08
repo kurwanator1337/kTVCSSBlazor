@@ -1,6 +1,6 @@
 ﻿@page "/mybestmatches"
 @using kTVCSSBlazor.Db.Models.Matches
-@inject Db.Interfaces.IMatches repo
+@inject Db.IRepository repo
 @inject IHttpContextAccessor httpContextAccessor
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
@@ -108,7 +108,7 @@ else
         if (firstRender)
         {
             JS.InvokeVoidAsync("showLoadBar");
-            dataSource.AddRange(repo.GetMyBestMatches(AuthProvider.CurrentUser.SteamId));
+            dataSource.AddRange(repo.Matches.GetMyBestMatches(AuthProvider.CurrentUser.SteamId));
             JS.InvokeVoidAsync("hideLoadBar");
         }
 

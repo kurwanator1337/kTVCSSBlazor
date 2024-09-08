@@ -3,7 +3,7 @@
 @using kTVCSSBlazor.Db.Models.Teams
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
-@inject Db.Interfaces.ITeams repo
+@inject Db.IRepository repo
 @inject SweetAlertService Swal
 @inject IDialogService DialogService
 @inject IHttpClientFactory ClientFactory
@@ -44,7 +44,7 @@
 
     private async Task Create()
     {
-        var result = repo.CreateTeam(team, AuthProvider.CurrentUser.SteamId);
+        var result = repo.Teams.CreateTeam(team, AuthProvider.CurrentUser.SteamId);
 
         if (result == 0)
         {
@@ -65,7 +65,7 @@
         {
             await ShowAlert("Успех", "Команда успешно создана!", 3000, SweetAlertIcon.Success, async () =>
             {
-                NavigationManager.NavigateTo("/team/" + repo.GetTeamBySteamID(AuthProvider.CurrentUser.SteamId), true);
+                NavigationManager.NavigateTo("/team/" + repo.Teams.GetTeamBySteamID(AuthProvider.CurrentUser.SteamId), true);
             });            
         }
     }

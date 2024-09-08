@@ -10,28 +10,8 @@ using VkNet.Model;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class UserFeed(string connectionString) : IUserFeed
+    public class UserFeed(IConfiguration configuration, ILogger logger) : Context(configuration, logger), IUserFeed
     {
-        private SqlConnection Db { get; set; } = new SqlConnection(connectionString);
-        private string ConnectionString { get; set; } = connectionString;
-
-        private void EnsureConnected()
-        {
-            try
-            {
-                if (Db.State != ConnectionState.Open)
-                {
-                    Db = new SqlConnection(Db.ConnectionString);
-                    Db.Open();
-                }
-            }
-            catch (Exception)
-            {
-                Db = new SqlConnection(ConnectionString);
-                EnsureConnected();
-            }
-        }
-
         public void Add(Models.UserFeed.Post post)
         {
             EnsureConnected();

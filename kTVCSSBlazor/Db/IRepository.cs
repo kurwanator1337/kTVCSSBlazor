@@ -5,7 +5,6 @@ namespace kTVCSSBlazor.Db
     public interface IRepository
     {
         public IAdmins Admins { get; }
-        public IBattleCup BattleCup { get; }
         public IFAQ FAQ { get; }
         public IGameServers GameServers { get; }
         public IHighlights Highlights { get; }

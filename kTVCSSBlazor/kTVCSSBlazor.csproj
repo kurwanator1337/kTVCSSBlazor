@@ -59,12 +59,18 @@
   
   <ItemGroup>
     <Compile Remove="Properties\Resources.Designer.cs" />
+    <Compile Remove="Components\Pages\BattleCup.cshtml.cs" />
   </ItemGroup>
 
   
   <ItemGroup>
     <Content Remove="Components\Pages\NewsFeed.razor" />
     <Content Remove="wwwroot\demos\2024-08-24_22_14_19_de_mirage_csgo_v2.dem.zip" />
+    <Content Remove="Components\Pages\BattleCup.cshtml" />
+    <Content Remove="Components\Pages\Players\PlayersT1.razor" />
+    <Content Remove="Components\Pages\Players\PlayersT2.razor" />
+    <Content Remove="Components\Pages\Signup.razor" />
+    <Content Remove="Components\Pages\Weather.razor" />
   </ItemGroup>
 
   

@@ -3,8 +3,7 @@
 @using kTVCSSBlazor.Db.Models.Players
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject IJSRuntime JS
-@inject Db.Interfaces.IPlayers repo
-@inject Db.Interfaces.IAdmins admin
+@inject Db.IRepository repo
 @inject NavigationManager NavigationManager
 @inject SweetAlertService Swal
 
@@ -253,10 +252,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        profile = repo.GetProfile(Convert.ToInt32(PlayerID));
-        info = repo.GetPlayerInfo(Convert.ToInt32(PlayerID));
+        profile = repo.Players.GetProfile(Convert.ToInt32(PlayerID));
+        info = repo.Players.GetPlayerInfo(Convert.ToInt32(PlayerID));
 
-        isAdmin = await admin.IsAdmin(AuthProvider.CurrentUser.SteamId);
+        isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
 
         if (isAdmin)
         {
@@ -284,9 +283,9 @@
 
     private async Task Save()
     {
-        string result = repo.SaveProfile(profile, Convert.ToInt32(PlayerID));
+        string result = repo.Players.SaveProfile(profile, Convert.ToInt32(PlayerID));
 
-        repo.SavePlayerAchiviments(Convert.ToInt32(PlayerID), ach);
+        repo.Players.SavePlayerAchiviments(Convert.ToInt32(PlayerID), ach);
 
         string trypass = profile.Password;
         if (profile.Password.Length != 32)

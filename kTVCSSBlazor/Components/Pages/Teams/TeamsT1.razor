@@ -3,7 +3,7 @@
 @using kTVCSSBlazor.Db.Models;
 @using kTVCSSBlazor.Db.Models.Players
 @using kTVCSSBlazor.Db.Models.Teams
-@inject Db.Interfaces.ITeams repo
+@inject Db.IRepository repo
 @inject IJSRuntime JS
 @inject kTVCSSAuthenticationStateProvider kTVCSSAuthenticationStateProvider
 
@@ -52,7 +52,7 @@
         if (firstRender)
         {
             JS.InvokeVoidAsync("showLoadBar");
-            var data = repo.Get().Where(x => x.Tier == 1).ToList();
+            var data = repo.Teams.Get().Where(x => x.Tier == 1).ToList();
             for (int i = 0; i < data.Count; i++)
             {
                 data[i].Position = i + 1;

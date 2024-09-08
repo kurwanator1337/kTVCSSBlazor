@@ -11,29 +11,8 @@ using VkNet.Model;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class Admins(IConfiguration configuration, ILogger logger) : IAdmins
+    public class Admins(IConfiguration configuration, ILogger logger) : Context(configuration, logger), IAdmins
     {
-        private SqlConnection Db { get; set; } = new SqlConnection(configuration.GetConnectionString("db"));
-        private string ConnectionString { get; set; } = configuration.GetConnectionString("db");
-        private ILogger Logger { get; set; } = logger;
-
-        private void EnsureConnected()
-        {
-            try
-            {
-                if (Db.State != ConnectionState.Open)
-                {
-                    Db = new SqlConnection(Db.ConnectionString);
-                    Db.Open();
-                }
-            }
-            catch (Exception)
-            {
-                Db = new SqlConnection(ConnectionString);
-                EnsureConnected();
-            }
-        }
-
         private void ExecuteCommand(string command)
         {
             try

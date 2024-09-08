@@ -10,11 +10,11 @@ using static Dapper.SqlMapper;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class Highlights(IConfigurationManager configuration, IVips vip) : IHighlights
+    public class Highlights(IConfiguration configuration, ILogger logger, IVips vip) : Context(configuration, logger), IHighlights
     {
         public static MemoryCache MemoryCache = new(new MemoryCacheOptions() { });
         private string ConnectionString { get; set; } = configuration.GetConnectionString("db");
-        private IVips vip { get; set; } = vip;
+        private IVips Vip { get; set; } = vip;
 
         public async Task<List<Result>> GetByPlayer(int id, string requester)
         {
@@ -35,7 +35,7 @@ namespace kTVCSSBlazor.Db.Repository
                 }
             }
 
-            if (!await vip.IsVip(requester)) return null;
+            if (!await Vip.IsVip(requester)) return null;
 
             List<int> matchesList = new List<int>();
             List<Match> logs = new List<Match>();
@@ -256,7 +256,7 @@ namespace kTVCSSBlazor.Db.Repository
             List<Match> logs = new List<Match>();
             List<Result> results = new List<Result>();
 
-            if (!await vip.IsVip(steam)) return null;
+            if (!await Vip.IsVip(steam)) return null;
 
             using (SqlConnection connection = new SqlConnection(ConnectionString))
             {

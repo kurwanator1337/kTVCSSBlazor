@@ -1,6 +1,6 @@
 ﻿@page "/steamidbinding"
 @inject kTVCSSAuthenticationStateProvider AuthProvider
-@inject Db.Interfaces.IPlayers repo
+@inject Db.IRepository repo
 
 <h3>SteamIDBinding</h3>
 
@@ -16,7 +16,7 @@
 
 <MudGrid Justify="Justify.Center">
     <MudItem xs="12" md="8">
-        <MudText Typo="Typo.body1">@repo.GetAfterSignupMessage(AuthProvider.CurrentUser.Id)</MudText>
+        <MudText Typo="Typo.body1">@repo.Players.GetAfterSignupMessage(AuthProvider.CurrentUser.Id)</MudText>
     </MudItem>
 </MudGrid>
 

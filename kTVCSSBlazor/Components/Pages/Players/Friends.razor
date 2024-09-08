@@ -6,7 +6,7 @@
 @using kTVCSSBlazor.Hubs
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject NavigationManager NavigationManager
-@inject Db.Interfaces.IPlayers repo
+@inject Db.IRepository repo
 @inject HubConnection hubConnection
 @inject SweetAlertService Swal
 @inject IHttpContextAccessor httpContextAccessor
@@ -142,8 +142,8 @@
                             <MudLink Color=Color.Default Href="@item.Link" Typo="Typo.h4">@item.Name</MudLink>
                         </MudCardContent>
                         <MudCardActions>
-                            <MudButton Disabled=@item.Status OnClick="() => { repo.AcceptFriendRequest(Id, item.Id); item.Status = true; }" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Text" Color="Color.Primary">Добавить</MudButton>
-                            <MudButton Disabled=@item.Status OnClick="() => { repo.RemoveFriendRequest(Id, item.Id); item.Status = true; }" StartIcon="@Icons.Material.Filled.RemoveCircle" Variant="Variant.Text" Color="Color.Error">Отклонить</MudButton>
+                            <MudButton Disabled=@item.Status OnClick="() => { repo.Players.AcceptFriendRequest(Id, item.Id); item.Status = true; }" StartIcon="@Icons.Material.Filled.Add" Variant="Variant.Text" Color="Color.Primary">Добавить</MudButton>
+                            <MudButton Disabled=@item.Status OnClick="() => { repo.Players.RemoveFriendRequest(Id, item.Id); item.Status = true; }" StartIcon="@Icons.Material.Filled.RemoveCircle" Variant="Variant.Text" Color="Color.Error">Отклонить</MudButton>
                         </MudCardActions>
                     </MudCard>
                 </MudItem>
@@ -160,7 +160,7 @@
                             <MudLink Class="text-wrap" Color=Color.Default Href="@item.Link" Typo="Typo.h4">@item.Name</MudLink>
                         </MudCardContent>
                         <MudCardActions>
-                            <MudButton Disabled=@item.Status OnClick="() => { repo.RemoveFriendRequest(item.Id, Id); item.Status = true; }" StartIcon="@Icons.Material.Filled.RemoveCircle" Variant="Variant.Text" Color="Color.Error">Отменить заявку</MudButton>
+                            <MudButton Disabled=@item.Status OnClick="() => { repo.Players.RemoveFriendRequest(item.Id, Id); item.Status = true; }" StartIcon="@Icons.Material.Filled.RemoveCircle" Variant="Variant.Text" Color="Color.Error">Отменить заявку</MudButton>
                         </MudCardActions>
                     </MudCard>
                 </MudItem>
@@ -225,11 +225,11 @@
             {
                 displayBar = "block";
                 friends = new();
-                friends.AddRange(repo.GetFriends(Id));
+                friends.AddRange(repo.Players.GetFriends(Id));
                 requests = new();
-                requests.AddRange(repo.GetFriendRequests(Id));
+                requests.AddRange(repo.Players.GetFriendRequests(Id));
                 outgoings = new();
-                outgoings.AddRange(repo.GetFriendRequestsOutgoing(Id));
+                outgoings.AddRange(repo.Players.GetFriendRequestsOutgoing(Id));
 
                 displayBar = "none";
 
@@ -240,11 +240,11 @@
 
         Id = AuthProvider.CurrentUser.Id;
 
-        friends.AddRange(repo.GetFriends(Id));
+        friends.AddRange(repo.Players.GetFriends(Id));
 
-        requests.AddRange(repo.GetFriendRequests(Id));
+        requests.AddRange(repo.Players.GetFriendRequests(Id));
 
-        outgoings.AddRange(repo.GetFriendRequestsOutgoing(Id));
+        outgoings.AddRange(repo.Players.GetFriendRequestsOutgoing(Id));
 
         foreach (var item in requests)
         {

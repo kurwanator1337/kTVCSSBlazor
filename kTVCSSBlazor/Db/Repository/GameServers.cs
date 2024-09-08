@@ -8,28 +8,8 @@ using Okolni.Source.Query;
 
 namespace kTVCSSBlazor.Db.Repository
 {
-    public class GameServers(string connectionString) : IGameServers
+    public class GameServers(IConfiguration configuration, ILogger logger) : Context(configuration, logger), IGameServers
     {
-        private SqlConnection Db { get; set; } = new SqlConnection(connectionString);
-        private string ConnectionString { get; set; } = connectionString;
-
-        private void EnsureConnected()
-        {
-            try
-            {
-                if (Db.State != ConnectionState.Open)
-                {
-                    Db = new SqlConnection(Db.ConnectionString);
-                    Db.Open();
-                }
-            }
-            catch (Exception)
-            {
-                Db = new SqlConnection(ConnectionString);
-                EnsureConnected();
-            }
-        }
-
         public List<dynamic> Get()
         {
             EnsureConnected();
