@@ -4,6 +4,7 @@
 @using System.Globalization
 @using CurrieTechnologies.Razor.SweetAlert2
 @using System.Timers
+@using Dapper
 @using kTVCSSBlazor.Components.Icons
 @using kTVCSSBlazor.Db.Models.Matches
 @using kTVCSSBlazor.Db.Models.Players
@@ -15,6 +16,7 @@
 @inject kTVCSSAuthenticationStateProvider AuthProvider
 @inject NavigationManager NavigationManager
 @inject SweetAlertService Swal
+@inject Db.Context ctx
 
 <kTVCSSBlazor.Components.Layout.Bar display="block" />
 <PageTitle>kTVCSS @@ Микс @Guid</PageTitle>
@@ -207,7 +209,7 @@
 
     private double a = 0;
     private double b = 0;
-    
+
     private int Difference = 0;
     private double ProgressValue = 0;
     private double ProgressValuePercentage = 0;
@@ -241,7 +243,7 @@
             teamA = "Golf";
             teamB = "Hotel";
         }
-        
+
         var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
         if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
         {
@@ -269,9 +271,9 @@
         {
             // zero
         }
-        
+
         timeLeft = (int)Mix.DtStart.Subtract(DateTime.Now).TotalSeconds;
-        
+
         timeLeftString = FormatTime(timeLeft);
         countdownTimer = new Timer(1000);
         countdownTimer.Elapsed += UpdateCountdown;
@@ -319,8 +321,43 @@
         {
             countdownTimer.Stop();
             countdownTimer.Dispose();
-            
-            // move to match
+
+            TryGotoMatchPage();
+        }
+    }
+
+    private async Task TryGotoMatchPage()
+    {
+        bool success = false;
+
+        ctx.EnsureConnected();
+
+        int matchID = ctx.Db.QueryFirstOrDefault<int>($"SELECT ID FROM MatchesLive WHERE FINISHED = 0 AND SERVERID = {Mix.ServerID}");
+
+        if (matchID > 0)
+        {
+            int score = ctx.Db.QueryFirstOrDefault<int>($"SELECT ASCORE + BSCORE FROM MatchesLive WHERE ID = {matchID}");
+
+            if (score > 0)
+            {
+                NavigationManager.NavigateTo($"/match/{matchID}");
+            }
+        }
+
+        while (!success)
+        {
+            await Task.Delay(10000);
+
+            matchID = ctx.Db.QueryFirstOrDefault<int>($"SELECT ID FROM MatchesLive WHERE FINISHED = 0 AND SERVERID = {Mix.ServerID}");
+
+            if (matchID > 0)
+            {
+                success = true;
+
+                await Task.Delay(60000);
+
+                NavigationManager.NavigateTo($"/match/{matchID}");
+            }
         }
     }
 

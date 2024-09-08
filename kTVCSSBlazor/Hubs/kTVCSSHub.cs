@@ -133,14 +133,14 @@ namespace kTVCSSBlazor.Hubs
             alertToken = configuration.GetValue<string>("tgMatchAlertBotToken");
             botClient = new Telegram.Bot.TelegramBotClient(alertToken);
             
-            /*
+            
             List<AwaitingPlayer> test = new List<AwaitingPlayer>();
             test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 219"));
             test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 8091"));
             test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 7460"));
             test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 8706"));
             test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 442"));
-            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 832"));
+            //test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 832"));
             test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 10207"));
             test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 9"));
             test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 5863"));
@@ -173,12 +173,12 @@ namespace kTVCSSBlazor.Hubs
             test.AddRange(team2);
 
             //RemoveTimeoutClients();
-            Mixes.Add(new Mix() { ServerID = 1, Guid = Guid.NewGuid(),
+            Mixes.Add(new Mix() { ServerID = 3, Guid = Guid.NewGuid(), DtStart = DateTime.Now.AddSeconds(30),
                 MixPlayers = test
             });
 
             Console.WriteLine(Mixes.First().Guid.ToString());
-            */
+            
         }
 
         private void EnsureConnected()
@@ -1016,7 +1016,7 @@ namespace kTVCSSBlazor.Hubs
         {
             var player = OnlineUsers.Where(x => x.Value.Id == leaver.Id);
 
-            if (player is not null)
+            if (player.Any())
             {
                 int previuosLobbyId = player.FirstOrDefault().Value.InLobbyWithPlayerID;
 
