@@ -355,7 +355,7 @@ namespace kTVCSSBlazor.Hubs
                     {
                         var ntp = noTeamPlayers.ToList();
 
-                        ntp = Shuffle(ntp);
+                        ntp = OldShuffle(ntp);
 
                         foreach (var player in ntp)
                         {
@@ -443,6 +443,64 @@ namespace kTVCSSBlazor.Hubs
             {
                 logger.LogError(ex.ToString());
             }
+        }
+
+        public List<AwaitingPlayer> OldShuffle(List<AwaitingPlayer> input)
+        {
+            List<AwaitingPlayer> output = new();
+            List<AwaitingPlayer> team1 = new();
+            List<AwaitingPlayer> team2 = new();
+
+            var nonZeros = input.Where(x => x.CurrentMMR != 0).ToList(); // типы без ранга
+            var zeros = input.Except(nonZeros).ToList(); // остальные
+
+            nonZeros = nonZeros.OrderByDescending(x => x.CurrentMMR).ToList();
+
+            double avgRating = nonZeros.Sum(x => x.CurrentMMR);
+
+            int sum_team1 = 0;
+            int sum_team2 = 0;
+
+            for (int i = 0; i < nonZeros.Count; i++)
+            {
+                if (sum_team1 <= sum_team2)
+                {
+                    sum_team1 += nonZeros[i].CurrentMMR;
+                    team1.Add(nonZeros[i]);
+                }
+                else
+                {
+                    sum_team2 += nonZeros[i].CurrentMMR;
+                    team2.Add(nonZeros[i]);
+                }
+            }
+
+            for (int i = 0; i < zeros.Count; i++)
+            {
+                if (team1.Count <= team2.Count)
+                {
+                    team1.Add(zeros[i]);
+                }
+                else
+                {
+                    team2.Add(zeros[i]);
+                }
+            }
+
+            foreach (var player in team1)
+            {
+                player.TeamID = "0";
+            }
+
+            foreach (var player in team2)
+            {
+                player.TeamID = "1";
+            }
+
+            output.AddRange(team1);
+            output.AddRange(team2);
+
+            return output;
         }
 
         private async Task SendTelegramAlert(AwaitingPlayer player)
