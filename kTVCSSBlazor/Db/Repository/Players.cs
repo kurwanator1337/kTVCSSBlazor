@@ -861,6 +861,15 @@ namespace kTVCSSBlazor.Db.Repository
                 if (kTVCSSHub.OnlineUsers.Where(x => x.Value.Id == i.Id).Any())
                 {
                     i.IsOnline = true;
+                    var p = kTVCSSHub.OnlineUsers.FirstOrDefault(x => x.Value.Id == i.Id);
+
+                    if (p.Value is not null)
+                    {
+                        i.IsAdmin = p.Value.IsAdmin;
+                        i.IsVip = p.Value.IsVip;
+                        i.IsPremiumVip = p.Value.IsPremiumVip;
+                    }
+                    
                 }
                 else i.IsOnline = false;
             }

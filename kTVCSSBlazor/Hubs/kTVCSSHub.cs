@@ -29,6 +29,7 @@ namespace kTVCSSBlazor.Hubs
         private string _connectionString { get; set; }
         private ILogger logger { get; set; }
         private IVips vips { get; set; }
+        private IRepository repository { get; set; }
         private IConfiguration configuration { get; set; }
         public static bool Checking = false;
         private string alertToken = "";
@@ -121,10 +122,11 @@ namespace kTVCSSBlazor.Hubs
 
         #region Координатор
 
-        public kTVCSSHub(string connectionString, ILogger logger, IConfiguration cfg, IVips vips)
+        public kTVCSSHub(string connectionString, ILogger logger, IConfiguration cfg, IVips vips, IRepository repository)
         {
             _connectionString = connectionString;
             this.vips = vips;
+            this.repository = repository;
             Db = new SqlConnection(connectionString);
             PlayersDirector();
             Instance = this;
@@ -1019,6 +1021,10 @@ namespace kTVCSSBlazor.Hubs
         public async Task UserConnected(User user)
         {
             if (user.SteamId == "STEAM_UNDEFINED") return;
+
+            user.IsAdmin = await repository.Admins.IsAdmin(user.SteamId);
+            user.IsVip = await repository.Vips.IsVip(user.SteamId);
+            user.IsPremiumVip = await repository.Vips.IsPremiumVip(user.SteamId);
 
             var connectionId = Context.ConnectionId;
 

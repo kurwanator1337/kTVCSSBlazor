@@ -11,6 +11,9 @@ namespace kTVCSSBlazor.Data
         public int InLobbyWithPlayerID { get; set; } = 0;
         public DateTime StartSearchDateTime { get; set; }
         public DateTime AliveDt { get; set; } = DateTime.Now;
+        public bool IsAdmin { get; set; }
+        public bool IsVip { get; set; }
+        public bool IsPremiumVip { get; set; }
 
         public ClaimsPrincipal ToClaimsPrincipal() => new(new ClaimsIdentity(new Claim[]
         {

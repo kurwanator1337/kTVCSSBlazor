@@ -25,6 +25,9 @@
         public string? HeaderPicture { get; set; }
         public int? Tier { get; set; }
         public bool IsOnline { get; set; }
+        public bool IsAdmin { get; set; }
+        public bool IsVip { get; set; }
+        public bool IsPremiumVip { get; set; }
     }
 
     public class BannedUser : TotalPlayer

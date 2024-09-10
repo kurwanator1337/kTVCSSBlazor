@@ -46,7 +46,22 @@
                 </TemplateColumn>
                 <TemplateColumn Title="Ник">
                     <CellTemplate>
-                        <MudLink Color="Color.Inherit" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                        @if (context.Item.IsAdmin)
+                        {
+                            <MudLink Color="Color.Error" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                        }
+                        else if (context.Item.IsPremiumVip)
+                        {
+                            <MudLink Color="Color.Info" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                        }
+                        else if (context.Item.IsVip)
+                        {
+                            <MudLink Color="Color.Warning" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                        }
+                        else
+                        {
+                            <MudLink Color="Color.Inherit" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                        }
                     </CellTemplate>
                 </TemplateColumn>
                 <PropertyColumn Property="x => x.SteamID" />
