@@ -26,6 +26,9 @@ using System.Text;
 using kTVCSSBlazor.Logging;
 using Microsoft.EntityFrameworkCore;
 using Blazored.Toast;
+using Blazorise;
+using Blazorise.Bootstrap5;
+using Blazorise.Icons.FontAwesome;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -44,6 +47,14 @@ builder.Services.AddSingleton<kTVCSSHub>(x => new kTVCSSHub(builder.Configuratio
 builder.Services.AddSingleton<STVDirectorHub>(x => new STVDirectorHub(builder.Configuration.GetConnectionString("db")));
 
 builder.Services.AddScoped<NotificationService>();
+
+builder.Services
+    .AddBlazorise(options =>
+    {
+        options.Immediate = true;
+    })
+    .AddBootstrap5Providers()
+    .AddFontAwesomeIcons();
 
 builder.Services.AddScoped(sp =>
 {

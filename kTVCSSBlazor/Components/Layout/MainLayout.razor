@@ -282,7 +282,7 @@
                         <NavMenu />
                         <MudSpacer />
                         @* <MudText Align="Align.Center" Typo="Typo.overline">kTVCSS © 2013-2024</MudText> *@
-                        <MudText Color="Color.Warning" Align="Align.Center" Typo="Typo.caption">kTVCSS v3.5.3.2 [NOT STABLE]</MudText>
+                        <MudText Color="Color.Warning" Align="Align.Center" Typo="Typo.caption">kTVCSS v3.5.3.3 [NOT STABLE]</MudText>
                     </MudDrawer>
                     <MudMainContent>
                         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4 pt-4">
@@ -491,8 +491,23 @@ else
     
     window.onbeforeunload = function (e) {
         DotNet.invokeMethodAsync('kTVCSSBlazor', 'NotifyUserDisconnected', steamID);
-    }; 
+    };
 
+    window.detectMobileDevice = () => {
+        const userAgent = navigator.userAgent || navigator.vendor || window.opera;
+        const isMobile = /android|iphone|kindle|ipad/i.test(userAgent);
+        if (isMobile) {
+            return true;
+        }
+        const isTouchDevice = 'ontouchstart' in window || navigator.maxTouchPoints;
+        if (screen.width <= 768) {
+            return true;
+        }
+        if (isTouchDevice) {
+            return true;
+        }
+        return false;
+    };
 </script>
 
 @code {
@@ -1127,13 +1142,6 @@ else
         {
             NavigationManager.NavigateTo("/");
         }
-
-        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
-        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
-        {
-            mudcardoptionsStyle = "column";
-            isMobile = true;
-        }
     }
 
     public void Dispose()
@@ -1146,6 +1154,7 @@ else
     {
         if (firstRender)
         {
+            isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
             try
             {
                 var isAuthorized = http.HttpContext.User.Identity.IsAuthenticated;

@@ -95,11 +95,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
-        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
-        {
-            isMobile = true;
-        }
+        isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
     }
 
     protected override void OnAfterRender(bool firstRender)

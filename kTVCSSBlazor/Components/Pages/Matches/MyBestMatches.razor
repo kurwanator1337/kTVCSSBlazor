@@ -92,27 +92,21 @@ else
 
     private Func<TotalMatch, int, string> _rowStyleFuncMobile => (x, i) => { return "background-image: url(/images/mapsbackgrs/" + x.MapName + ".jpg);background-size: 150% auto;background-color: rgb(0 0 0 / 50%); background-position: center; background-blend-mode: multiply;"; };
 
-    protected override Task OnInitializedAsync()
+    protected override async Task OnInitializedAsync()
     {
-        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
-        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
-        {
-            isMobile = true;
-        }
-
-        return base.OnInitializedAsync();
+        dataSource.AddRange(repo.Matches.GetMyBestMatches(AuthProvider.CurrentUser.SteamId));
     }
 
-    protected override Task OnAfterRenderAsync(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
+
             JS.InvokeVoidAsync("showLoadBar");
-            dataSource.AddRange(repo.Matches.GetMyBestMatches(AuthProvider.CurrentUser.SteamId));
+            
             JS.InvokeVoidAsync("hideLoadBar");
         }
-
-        return base.OnAfterRenderAsync(firstRender);
     }
 
 }

@@ -260,12 +260,6 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
-        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
-        {
-            isMobile = true;
-        }
-
         me = await AuthProvider.GetUserFromDataBase();
 
         Id = AuthProvider.CurrentUser.Id;
@@ -316,10 +310,11 @@ else
         return mix;
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
             JS.InvokeVoidAsync("showLoadBar");
             dataSource.AddRange(repo.Players.GetOnlinePlayers());
             JS.InvokeVoidAsync("hideLoadBar");

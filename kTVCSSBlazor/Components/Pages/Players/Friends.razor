@@ -10,6 +10,7 @@
 @inject HubConnection hubConnection
 @inject SweetAlertService Swal
 @inject IHttpContextAccessor httpContextAccessor
+@inject IJSRuntime JS
 
 <PageTitle>kTVCSS @@ Мои друзья</PageTitle>
 
@@ -195,14 +196,16 @@
         }
     }
 
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
+        }
+    }
+
     protected override async Task OnInitializedAsync()
     {
-        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
-        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
-        {
-            isMobile = true;
-        }
-
         connectionID = hubConnection.State == HubConnectionState.Connected ? hubConnection.ConnectionId : null;
 
         if (connectionID != null)

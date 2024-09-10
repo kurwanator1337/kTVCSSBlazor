@@ -110,10 +110,7 @@
                             }
                             else if (post.MediaType == MediaType.Video)
                             {
-                                <video style="max-width: @videoWidth" controls>
-                                    <source src=@post.MediaUrl type="video/mp4">
-                                    Your browser does not support the video tag.
-                                </video>
+                                <Video Style="@videoWidth" Source="@(post.MediaUrl)" StreamingLibrary="StreamingLibrary.Dash" />
                             }
                         }
                         <MudItem Style="margin-top:1%" md="6" xs="12">
@@ -156,7 +153,7 @@
                                             </MudLink>
                                         }
                                         <MudText Typo="Typo.caption">@post.Comments[0].CommentDate.ToString("g")</MudText>
-                                        <MudText Typo="Typo.body1" Class="mt-1">@post.Comments[0].Content</MudText>
+                                        <MudText Style="overflow-wrap: anywhere;" Typo="Typo.body1" Class="mt-1">@post.Comments[0].Content</MudText>
                                     </MudItem>
                                 </MudGrid>
                                 <MudGrid Class="mt-2">
@@ -183,7 +180,7 @@
                                             </MudLink>
                                         }
                                         <MudText Typo="Typo.caption">@post.Comments[1].CommentDate.ToString("g")</MudText>
-                                        <MudText Typo="Typo.body1" Class="mt-1">@post.Comments[1].Content</MudText>
+                                        <MudText Style="overflow-wrap: anywhere;" Typo="Typo.body1" Class="mt-1">@post.Comments[1].Content</MudText>
                                     </MudItem>
                                 </MudGrid>
                                 <MudGrid Class="mt-2">
@@ -210,7 +207,7 @@
                                             </MudLink>
                                         }
                                         <MudText Typo="Typo.caption">@post.Comments[2].CommentDate.ToString("g")</MudText>
-                                        <MudText Typo="Typo.body1" Class="mt-1">@post.Comments[2].Content</MudText>
+                                        <MudText Style="overflow-wrap: anywhere;" Typo="Typo.body1" Class="mt-1">@post.Comments[2].Content</MudText>
                                     </MudItem>
                                 </MudGrid>
                                 <MudExpansionPanels>
@@ -241,7 +238,7 @@
                                                         </MudLink>
                                                     }
                                                     <MudText Typo="Typo.caption">@comment.CommentDate.ToString("g")</MudText>
-                                                    <MudText Typo="Typo.body1" Class="mt-1">@comment.Content</MudText>
+                                                    <MudText Style="overflow-wrap: anywhere;" Typo="Typo.body1" Class="mt-1">@comment.Content</MudText>
                                                 </MudItem>
                                             </MudGrid>
                                         }
@@ -276,7 +273,7 @@
                                                 </MudLink>
                                             }
                                             <MudText Typo="Typo.caption">@comment.CommentDate.ToString("g")</MudText>
-                                            <MudText Typo="Typo.body1" Class="mt-1">@comment.Content</MudText>
+                                            <MudText Style="overflow-wrap: anywhere;" Typo="Typo.body1" Class="mt-1">@comment.Content</MudText>
                                         </MudItem>
                                     </MudGrid>
                                 }
@@ -332,6 +329,20 @@
                 </MudItem>
             </MudGrid>
         </MudTabPanel>
+        <MudTabPanel Text="Хайлайты" Icon="@Icons.Material.Filled.MovieFilter">
+            <MudGrid Style="margin-top: 1%" Justify="Justify.Center">
+                @foreach (var movie in Movies)
+                {
+                    <MudItem xs="12" md="9">
+                        <MudPaper Elevation="4">
+                            <MudText Typo="Typo.h5" Class="py-4" Align="Align.Center">@movie.Title</MudText>
+                            <Video Source="@(movie.Url)" StreamingLibrary="StreamingLibrary.Dash"/>
+                            <MudText Class="py-4" Align="Align.Center">@movie.Description</MudText>
+                        </MudPaper>
+                    </MudItem>
+                }
+            </MudGrid>
+        </MudTabPanel>
     </MudTabs>
 </MudContainer>
 
@@ -346,6 +357,7 @@
     private List<Db.Models.Arcticles.Article> newsList = new();
 
     private List<dynamic> TopAlerts { get; set; } = new();
+    private List<dynamic> Movies { get; set; } = new();
 
     private string imgWidth = "40%";
     private string videoWidth = "50%";
@@ -389,15 +401,10 @@
 
     protected override async Task OnInitializedAsync()
     {
-        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
-        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
+        if (isMobile)
         {
-            isMobile = true;
-            if (isMobile)
-            {
-                videoWidth = "100%";
-                imgWidth = "100%";
-            }
+            videoWidth = "100%";
+            imgWidth = "100%";
         }
     }
 
@@ -405,6 +412,8 @@
     {
         if (firstRender)
         {
+            isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
+
             posts.AddRange(repo.UserFeed.GetPosts());
 
             JS.InvokeVoidAsync("hideLoadBar");
@@ -435,6 +444,7 @@
                 newsList.AddRange(arcticles);
 
                 TopAlerts = sql.Query("SELECT * FROM TopAlerts").ToList();
+                Movies = sql.Query("SELECT * FROM Movies").ToList();
             }
 
             StateHasChanged();

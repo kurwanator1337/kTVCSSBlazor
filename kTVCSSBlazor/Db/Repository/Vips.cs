@@ -120,7 +120,7 @@ namespace kTVCSSBlazor.Db.Repository
 
                 Db.Execute("DeletePlayer", d, commandType: CommandType.StoredProcedure);
 
-                Logger.LogInformation($"https://ktvcss.ru/player/{id} обнулил статистику");
+                Logger.LogDebug($"https://ktvcss.ru/player/{id} обнулил статистику");
 
                 return true;
             }
@@ -160,7 +160,7 @@ namespace kTVCSSBlazor.Db.Repository
 
                 Db.Execute("DeletePlayerEx", d, commandType: CommandType.StoredProcedure);
 
-                Logger.LogInformation($"https://ktvcss.ru/player/{id} полностью обнулил статистику");
+                Logger.LogDebug($"https://ktvcss.ru/player/{id} полностью обнулил статистику");
 
                 return true;
             }

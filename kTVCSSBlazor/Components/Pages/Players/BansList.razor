@@ -92,21 +92,12 @@
         }
     }
 
-    protected override void OnInitialized()
-    {
-        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
-        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
-        {
-            isMobile = true;
-        }
-
-        base.OnInitialized();
-    }
 
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
+            isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
             JS.InvokeVoidAsync("showLoadBar");
             dataSource.AddRange(repo.Players.GetBannedList());
             JS.InvokeVoidAsync("hideLoadBar");

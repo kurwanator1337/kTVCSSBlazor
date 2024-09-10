@@ -311,14 +311,7 @@ else
 
     protected override async Task OnInitializedAsync()
     {
-        var userAgent = httpContextAccessor?.HttpContext?.Request.Headers["User-Agent"].ToString();
-        if (userAgent != null && (userAgent.Contains("Android") || userAgent.Contains("iPhone")))
-        {
-            isMobile = true;
-            // membersCardStyle = "flex-column";
-            // memberCardHeight = 250;
-            // memberCardMargin = "margin-bottom: 2%";
-        }
+        isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
 
         isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
     }
