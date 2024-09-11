@@ -276,7 +276,7 @@ else
     protected override async Task OnInitializedAsync()
     {
         me = await AuthProvider.GetUserFromDataBase();
-
+        
         Id = AuthProvider.CurrentUser.Id;
 
         isVip = await repo.Players.IsVip(me.SteamId);

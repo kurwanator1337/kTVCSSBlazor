@@ -62,20 +62,19 @@
         return $"/player/{id}";
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        if (isMobile)
-        {
-            cellWidth = "";
-        }
-    }
-
     protected override async Task OnAfterRenderAsync(bool firstRender)
     {
-        isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
-        JS.InvokeVoidAsync("showLoadBar");
-        dataSource.AddRange(repo.Players.GetFftList());
-        JS.InvokeVoidAsync("hideLoadBar");
-        base.OnAfterRender(firstRender);
+        if (firstRender)
+        {
+            isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
+            if (isMobile)
+            {
+                cellWidth = "";
+            }
+            JS.InvokeVoidAsync("showLoadBar");
+            dataSource.AddRange(repo.Players.GetFftList());
+            JS.InvokeVoidAsync("hideLoadBar");
+            StateHasChanged();
+        }
     }
 }

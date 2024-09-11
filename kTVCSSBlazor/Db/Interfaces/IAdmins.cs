@@ -16,6 +16,5 @@
         Task SetModerator(int id, string admin);
         Task RemoveModerator(int id, string admin);
         Task BugReport(int id, string text);
-        Task RestoreMMR();
     }
 }

@@ -134,6 +134,56 @@ namespace kTVCSSBlazor.Hubs
             configuration = cfg;
             alertToken = configuration.GetValue<string>("tgMatchAlertBotToken");
             botClient = new Telegram.Bot.TelegramBotClient(alertToken);
+            
+            #if DEBUG
+            
+            List<AwaitingPlayer> test = new List<AwaitingPlayer>();
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 219"));
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 8091"));
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 7460"));
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 8706"));
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 442"));
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 5940"));
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 10207"));
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 9"));
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 5863"));
+            test.Add(Db.QueryFirst<AwaitingPlayer>($"exec IAuthTest @ID = 30"));
+            var optimalTeams = FindOptimalTeams(test);
+
+            var firstAvg = optimalTeams.Item1.Average(x => x.CurrentMMR);
+            var secondAvg = optimalTeams.Item2.Average(x => x.CurrentMMR);
+
+            test.Clear();
+            test.AddRange(optimalTeams.Item1);
+            test.AddRange(optimalTeams.Item2);
+
+            var team1 = optimalTeams.Item1;
+            var team2 = optimalTeams.Item2;
+
+            foreach (var player in team1)
+            {
+                player.TeamID = "0";
+                player.InLobbyWithPlayerID = team1.First().Id;
+            }
+
+            foreach (var player in team2)
+            {
+                player.TeamID = "1";
+            }
+
+            test.Clear();
+
+            test.AddRange(team1);
+            test.AddRange(team2);
+
+            //RemoveTimeoutClients();
+            Mixes.Add(new Mix() { ServerID = 1, Guid = Guid.NewGuid(),
+                MixPlayers = test
+            });
+
+            Console.WriteLine(Mixes.First().Guid.ToString());
+            
+            #endif
         }
 
         private void EnsureConnected()

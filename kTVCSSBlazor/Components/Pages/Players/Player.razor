@@ -121,7 +121,6 @@ else
     protected override async Task OnInitializedAsync()
     {
         isAdmin = await repo.Admins.IsAdmin(AuthProvider.CurrentUser.SteamId);
-        
         string[] colors = { "var(--mud-palette-success)", "var(--mud-palette-error)" };
         options.ChartPalette = colors;
         options.YAxisLines = true;

@@ -7,6 +7,7 @@
 @using Dapper
 @using Microsoft.AspNetCore.Components.Authorization
 @using System.ComponentModel.DataAnnotations
+@using System.Diagnostics
 @using System.Text.RegularExpressions
 @using System.Security.Claims
 @using kTVCSSBlazor.Components
@@ -30,6 +31,7 @@
 @inject HubConnection hubConnection
 @inject NotificationService NotificationService
 @inject IToastService toastService
+@inject ILogger<Index> logger
 
 <MyMudThemeProvider />
 <MyMudProviders />
@@ -267,6 +269,10 @@
                                 }
                                 <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Primary" OnTouch=@(async () => { await hubConnection.InvokeAsync("DisconnectMe", user); NavigationManager.NavigateTo("/", true); }) OnClick=@(async () => { await hubConnection.InvokeAsync("DisconnectMe", user); NavigationManager.NavigateTo("/", true); })>Отключиться от хаба</MudMenuItem>
                                 <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Primary" OnTouch=@(() => { AuthProvider.LogoutAsync(); NavigationManager.NavigateTo("/", true); }) OnClick=@(() => { AuthProvider.LogoutAsync(); NavigationManager.NavigateTo("/", true); })>Выйти</MudMenuItem>
+                                @if (isAdmin)
+                                {
+                                    <MudMenuItem Style="min-width: 36px;" IconSize="Size.Medium" IconColor="Color.Error" OnTouch=Reboot OnClick="Reboot">Рестарт</MudMenuItem>
+                                }
                             </MudMenu>
                         </MudAppBar>
                     }
@@ -282,7 +288,7 @@
                         <NavMenu />
                         <MudSpacer />
                         @* <MudText Align="Align.Center" Typo="Typo.overline">kTVCSS © 2013-2024</MudText> *@
-                        <MudText Color="Color.Warning" Align="Align.Center" Typo="Typo.caption">kTVCSS v3.5.3.3 [NOT STABLE]</MudText>
+                        <MudText Color="Color.Success" Align="Align.Center" Typo="Typo.caption">kTVCSS v3.5.3.7 [STABLE]</MudText>
                     </MudDrawer>
                     <MudMainContent>
                         <MudContainer MaxWidth="MaxWidth.ExtraLarge" Class="my-4 pt-4">
@@ -590,6 +596,33 @@ else
             repo.Admins.BugReport(user.Id, result.Value);
 
             toastService.ShowWarning($"Сообщение было отправлено администрации!");
+        }
+    }
+
+    private async Task Reboot()
+    {
+        try
+        {
+            Process proc = new Process();
+            proc.StartInfo.FileName = "/bin/bash";
+            proc.StartInfo.Arguments = "-c \" " + "cd /home/aspnet/ktvcss.ru && sh run.sh" + " \"";
+            proc.StartInfo.UseShellExecute = false;
+            proc.StartInfo.RedirectStandardOutput = true;
+            proc.Start();
+            while (!proc.StandardOutput.EndOfStream)
+            {
+                Console.WriteLine(proc.StandardOutput.ReadLine());
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.ForegroundColor = ConsoleColor.Red;
+            Console.WriteLine(ex.ToString());
+        }
+        finally
+        {
+            logger.LogInformation($"{user.Username} перезапустил сайт!");
+            Environment.Exit(0);
         }
     }
 

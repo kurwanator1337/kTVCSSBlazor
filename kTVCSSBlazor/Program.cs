@@ -30,6 +30,13 @@ using Blazorise;
 using Blazorise.Bootstrap5;
 using Blazorise.Icons.FontAwesome;
 
+Thread.Sleep(3000);
+
+if (!File.Exists("reboot-web.sh"))
+{
+    File.WriteAllText("reboot-web.sh", @"cd /home/aspnet/ktvcss.ru && sh run.sh");
+}
+
 var builder = WebApplication.CreateBuilder(args);
 
 builder.Services.AddScoped<ClipboardService>();

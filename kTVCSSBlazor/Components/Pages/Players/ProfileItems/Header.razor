@@ -11,6 +11,7 @@
 @inject HubConnection hubConnection
 @inject IToastService toastService
 @inject Db.IRepository repo
+@inject IJSRuntime JS
 
 <MudGrid Justify="Justify.Center">
     <MudItem xs="12" md="12">
@@ -84,7 +85,7 @@
                     </MudStack>
                 }
             </MudCardContent>
-            <MudCardActions Style="justify-content: center;padding-top: 0px;">
+            <MudCardActions Style="@(isMobile ? "flex-direction: column;justify-content: center;padding-top: 0px;" : "justify-content: center;padding-top: 0px;flex-direction: row")">
                 @if (@AuthProvider.CurrentUser.Id == Convert.ToInt32(Id))
                 {
                     <MudButton OnClick="() => { CopyProfileUrl(); }" Style="font-size: 0.8em;" Variant="Variant.Text" StartIcon="@Icons.Material.Filled.CopyAll" Color="Color.Primary">Получить ссылку на профиль</MudButton>
@@ -239,6 +240,7 @@
     private bool isModer = false;
     private bool itIsAdmin = false;
     private bool itIsVip = false;
+    private bool isMobile = false;
 
     private async Task SendPrivateMessage(int user)
     {
@@ -263,6 +265,14 @@
             repo.IM.SendMessage(myself.Id, user, result.Value);
 
             toastService.ShowSuccess($"Сообщение было отправлено!");
+        }
+    }
+
+    protected override async Task OnAfterRenderAsync(bool firstRender)
+    {
+        if (firstRender)
+        {
+            isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
         }
     }
 

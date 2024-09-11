@@ -229,36 +229,5 @@ namespace kTVCSSBlazor.Db.Repository
         {
             Logger.LogInformation($"https://ktvcss.ru/player/{id} сообщил о баге/ошибке {text}");
         }
-
-        public async Task RestoreMMR()
-        {
-            EnsureConnected();
-
-            var data = Db.Query("SELECT * FROM Players WHERE STEAMID IN (SELECT STEAMID FROM [kTVCSS].[dbo].[Players] WHERE STEAMID != 'STEAM_UNDEFINED' GROUP BY STEAMID HAVING COUNT(STEAMID) > 1) ORDER BY STEAMID ");
-
-            var group = data.GroupBy(x => x.STEAMID);
-
-            foreach (var item in group)
-            {
-                var order = item.OrderBy(x => x.ID);
-
-                for (int i = 0; i < order.Count(); i++)
-                {
-                    if (i == order.Count()) continue;
-                    else
-                    {
-                        Db.Execute($"DELETE FROM Players WHERE ID = {order.ElementAt(i).ID}");
-                    }
-                }
-            }
-
-            var ids = Db.Query<string>("SELECT STEAMID FROM Players WITH (NOLOCK)");
-
-            foreach (var id in ids)
-            {
-                var mmr = Db.QuerySingleOrDefault<int>($"SELECT TOP(1) MMR FROM PlayersRatingProgress WHERE steamid = '{id}' ORDER BY DATETIME desc");
-                Db.Execute($"UPDATE Players SET MMR = '{mmr}' WHERE STEAMID = '{id}'");
-            }
-        }
     }
 }

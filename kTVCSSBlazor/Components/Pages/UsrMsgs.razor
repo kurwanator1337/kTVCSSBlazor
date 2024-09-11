@@ -77,27 +77,72 @@
                         <ul class="m-b-0">
                             @if (messages.Count > 0)
                             {
-                                @foreach (var message in messages)
+                                @for (int i = 0; i < messages.Count; i++)
                                 {
-                                    if (message.FromID == me)
+                                    var message = messages[i];
+                                    if (i == 0)
                                     {
-                                        <li class="clearfix">
-                                            <div style="display: flex; justify-content: end; align-items: center;" class="message-data text-right">
-                                                <span style="margin-right: 10px" class="message-data-time">@message.FromName в @message.DateTime.ToShortTimeString() @message.DateTime.ToShortDateString()</span>
-                                                <img src="@message.FromAvatar">
-                                            </div>
-                                            <div class="message other-message float-right"> @message.Text </div>
-                                        </li>
+                                        if (message.FromID == me)
+                                        {
+                                            <li class="clearfix">
+                                                <div style="display: flex; justify-content: end; align-items: center;" class="message-data text-right">
+                                                    <span style="margin-right: 10px" class="message-data-time">@message.FromName в @message.DateTime.ToShortTimeString() @message.DateTime.ToShortDateString()</span>
+                                                    <img src="@message.FromAvatar">
+                                                </div>
+                                                <div class="message other-message float-right"> @message.Text </div>
+                                            </li>
+                                        }
+                                        else
+                                        {
+                                            <li class="clearfix">
+                                                <div style="display: flex; justify-content: start; align-items: center;" class="message-data">
+                                                    <img src="@message.FromAvatar">
+                                                    <span class="message-data-time">@message.FromName в @message.DateTime.ToShortTimeString() @message.DateTime.ToShortDateString()</span>
+                                                </div>
+                                                <div class="message my-message"> @message.Text </div>
+                                            </li>
+                                        }
                                     }
                                     else
                                     {
-                                        <li class="clearfix">
-                                            <div style="display: flex; justify-content: start; align-items: center;" class="message-data">
-                                                <img src="@message.FromAvatar">
-                                                <span class="message-data-time">@message.FromName в @message.DateTime.ToShortTimeString() @message.DateTime.ToShortDateString()</span>
-                                            </div>
-                                            <div class="message my-message"> @message.Text </div>
-                                        </li>
+                                        if (messages[i].FromID == messages[i - 1].FromID)
+                                        {
+                                            if (message.FromID == me)
+                                            {
+                                                <li class="clearfix">
+                                                    <div class="message other-message float-right"> @message.Text </div>
+                                                </li>
+                                            }
+                                            else
+                                            {
+                                                <li class="clearfix">
+                                                    <div class="message my-message"> @message.Text </div>
+                                                </li>
+                                            }
+                                        }
+                                        else
+                                        {
+                                            if (message.FromID == me)
+                                            {
+                                                <li class="clearfix">
+                                                    <div style="display: flex; justify-content: end; align-items: center;" class="message-data text-right">
+                                                        <span style="margin-right: 10px" class="message-data-time">@message.FromName в @message.DateTime.ToShortTimeString() @message.DateTime.ToShortDateString()</span>
+                                                        <img src="@message.FromAvatar">
+                                                    </div>
+                                                    <div class="message other-message float-right"> @message.Text </div>
+                                                </li>
+                                            }
+                                            else
+                                            {
+                                                <li class="clearfix">
+                                                    <div style="display: flex; justify-content: start; align-items: center;" class="message-data">
+                                                        <img src="@message.FromAvatar">
+                                                        <span class="message-data-time">@message.FromName в @message.DateTime.ToShortTimeString() @message.DateTime.ToShortDateString()</span>
+                                                    </div>
+                                                    <div class="message my-message"> @message.Text </div>
+                                                </li>
+                                            }
+                                        }
                                     }
                                 }
                             }
@@ -163,7 +208,7 @@
 
             .chat .chat-history ul li {
                 list-style: none;
-                margin-bottom: 30px
+                margin-bottom: 5px;
             }
 
                 .chat .chat-history ul li:last-child {
@@ -186,7 +231,7 @@
 
 
         .chat .chat-history .message {
-            padding: 18px 20px;
+            padding: 6px 12px;
             line-height: 26px;
             font-size: 16px;
             border-radius: 7px;
@@ -395,7 +440,7 @@
         if (item is not null)
         {
             selectedItem = item;
-            currentChat = "Чат с " + (item as DialogItem).Name;
+            currentChat = (item as DialogItem).Name;
             currentID = (item as DialogItem).ID;
             currentName = (item as DialogItem).Name;
             currentAvatar = (item as DialogItem).Avatar;
