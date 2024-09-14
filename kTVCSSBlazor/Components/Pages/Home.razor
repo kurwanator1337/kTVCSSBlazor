@@ -110,7 +110,14 @@
                             }
                             else if (post.MediaType == MediaType.Video)
                             {
-                                <Video Style="@videoWidth" Source="@(post.MediaUrl)" StreamingLibrary="StreamingLibrary.Dash" />
+                                @if (!isMobile)
+                                {
+                                    <Video Style="@videoWidth" Source="@(post.MediaUrl)" StreamingLibrary="StreamingLibrary.Dash" />
+                                }
+                                else
+                                {
+                                    <video style="@videoWidth" src="@post.MediaUrl" />
+                                }
                             }
                         }
                         <MudItem Style="margin-top:1%" md="6" xs="12">
@@ -336,7 +343,14 @@
                     <MudItem xs="12" md="9">
                         <MudPaper Elevation="4">
                             <MudText Typo="Typo.h5" Class="py-4" Align="Align.Center">@movie.Title</MudText>
-                            <Video Source="@(movie.Url)" StreamingLibrary="StreamingLibrary.Dash"/>
+                            @if (!isMobile)
+                            {
+                                <Video Source="@(movie.Url)" StreamingLibrary="StreamingLibrary.Dash"/>
+                            }
+                            else
+                            {
+                                <video src="@movie.Url" />
+                            }
                             <MudText Class="py-4" Align="Align.Center">@movie.Description</MudText>
                         </MudPaper>
                     </MudItem>

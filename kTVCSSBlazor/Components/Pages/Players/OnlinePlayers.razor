@@ -300,11 +300,11 @@ else
             Swal.FireAsync(options);
         }
 
-        hubConnection.On("RefreshOnline", () =>
+        hubConnection.On("RefreshOnline", async () =>
             {
                 JS.InvokeVoidAsync("showLoadBar");
                 dataSource.Clear();
-                dataSource.AddRange(repo.Players.GetOnlinePlayers());
+                dataSource.AddRange(await repo.Players.GetOnlinePlayers());
                 JS.InvokeVoidAsync("hideLoadBar");
 
                 InvokeAsync(StateHasChanged);
@@ -331,7 +331,7 @@ else
         {
             isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
             JS.InvokeVoidAsync("showLoadBar");
-            dataSource.AddRange(repo.Players.GetOnlinePlayers());
+            dataSource.AddRange(await repo.Players.GetOnlinePlayers());
             JS.InvokeVoidAsync("hideLoadBar");
         }
         base.OnAfterRender(firstRender);

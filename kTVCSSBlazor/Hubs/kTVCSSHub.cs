@@ -1130,9 +1130,9 @@ namespace kTVCSSBlazor.Hubs
         {
             if (user.SteamId == "STEAM_UNDEFINED") return;
 
-            user.IsAdmin = await repository.Admins.IsAdmin(user.SteamId);
-            user.IsVip = await repository.Vips.IsVip(user.SteamId);
-            user.IsPremiumVip = await repository.Vips.IsPremiumVip(user.SteamId);
+            //user.IsAdmin = await repository.Admins.IsAdmin(user.SteamId);
+            // user.IsVip = await repository.Vips.IsVip(user.SteamId);
+            // user.IsPremiumVip = await repository.Vips.IsPremiumVip(user.SteamId);
 
             var connectionId = Context.ConnectionId;
 

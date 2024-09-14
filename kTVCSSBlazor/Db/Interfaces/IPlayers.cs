@@ -5,7 +5,7 @@ namespace kTVCSSBlazor.Db.Interfaces
 {
     public interface IPlayers
     {
-        List<TotalPlayer> Get();
+        Task<List<TotalPlayer>> Get(bool refresh = false);
         List<BannedUser> GetBannedList();
         Models.Players.Player Get(int id);
         Models.Players.Player Get(string steam);
@@ -20,8 +20,8 @@ namespace kTVCSSBlazor.Db.Interfaces
         void AcceptFriendRequest(int player, int target);
         void RemoveFriendRequest(int player, int target);
         bool IsFriend(int player, int target);
-        List<TotalPlayer> GetFriends(int player);
-        List<TotalPlayer> GetOnlinePlayers();
+        Task<List<TotalPlayer>> GetFriends(int player);
+        Task<List<TotalPlayer>> GetOnlinePlayers();
         void MakeReport(int me, int player, string text);
         Task<bool> IsVip(string steam);
         string GetAfterSignupMessage(int id);

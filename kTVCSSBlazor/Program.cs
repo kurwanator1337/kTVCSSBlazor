@@ -120,19 +120,10 @@ if (!app.Environment.IsDevelopment())
 }
 app.UseStaticFiles();
 
-app.MapGet("/api/RequestUpdateTotalPlayers", () => {
+app.MapGet("/api/RequestUpdateTotalPlayers", (IRepository repository) => {
     Task task = new Task(async () =>
     {
-        using (SqlConnection db = new SqlConnection(builder.Configuration.GetConnectionString("db")))
-        {
-            db.Open();
-
-            var players = await db.QueryAsync<TotalPlayer>("[kTVCSS].[dbo].[GetTotalPlayers]", commandType: CommandType.StoredProcedure, commandTimeout: 6000);
-
-            kTVCSSBlazor.Db.Repository.Players.MemoryCache.Set("TotalPlayerListMemory", players);
-
-            File.WriteAllText("players.cache", JsonConvert.SerializeObject(players));
-        }
+        repository.Players.Get(true);
     });
     task.Start();
 });

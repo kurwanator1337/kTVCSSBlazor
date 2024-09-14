@@ -32,37 +32,111 @@ namespace kTVCSSBlazor.Db.Repository
         public static MemoryCache MemoryCache = new(new MemoryCacheOptions() { });
         private string ConnectionString { get; set; } = configuration.GetConnectionString("db");
 
-        public List<TotalPlayer> Get()
+        private async Task<bool> GetPremiumInfoFromTelegram(long userId)
+        {
+            string token = configuration.GetValue<string>("tgBotToken");
+
+            try
+            {
+                TelegramBotClient botClient = new TelegramBotClient(token);
+                var chat = await botClient.GetChatMemberAsync(new ChatId(-1002355396885), userId);
+                if (chat.User != null)
+                {
+                    if (chat.Status == ChatMemberStatus.Member || chat.Status == ChatMemberStatus.Restricted)
+                    {
+                        return true;
+                    }
+                }
+            }
+            catch (Exception)
+            {
+                return false;
+            }
+            return false;
+        }
+        
+        public async Task<List<TotalPlayer>> Get(bool refresh = false)
         {
             //var requester = kTVCSSHub.OnlineUsers.FirstOrDefault(x => x.Value.Id == 5940).Key;
 
             //kTVCSSHub.Instance.Clients.Client(requester).SendAsync("GetActionError", "test");
 
-            MemoryCache.TryGetValue("TotalPlayerListMemory", out IEnumerable<TotalPlayer> players);
-
-            if (players is not null)
+            if (!refresh)
             {
-                return players.ToList();
-            }
+                MemoryCache.TryGetValue("TotalPlayerListMemory", out IEnumerable<TotalPlayer> players);
 
-            if (System.IO.File.Exists("players.cache"))
-            {
-                players = JsonConvert.DeserializeObject<IEnumerable<TotalPlayer>>(System.IO.File.ReadAllText("players.cache"));
+                if (players is not null)
+                {
+                    return players.ToList();
+                }
+
+                if (System.IO.File.Exists("players.cache"))
+                {
+                    players = JsonConvert.DeserializeObject<IEnumerable<TotalPlayer>>(System.IO.File.ReadAllText("players.cache"));
+
+                    MemoryCache.Set("TotalPlayerListMemory", players);
+
+                    return players.ToList();
+                }
+
+                EnsureConnected();
+
+                players = Db.Query<TotalPlayer>("[kTVCSS].[dbo].[GetTotalPlayers]", commandType: CommandType.StoredProcedure, commandTimeout: 6000);
+
+                foreach (var player in players)
+                {
+                    if (player.TelegramID is not null)
+                    {
+                        if (await GetPremiumInfoFromTelegram(player.TelegramID.Value))
+                        {
+                            player.IsPremiumVip = true;
+                            continue;
+                        }
+                    
+                        if (await GetInfoFromTelegram(player.TelegramID.Value))
+                        {
+                            player.IsVip = true;
+                            continue;
+                        }
+                    }
+                }
 
                 MemoryCache.Set("TotalPlayerListMemory", players);
 
+                System.IO.File.WriteAllText("players.cache", JsonConvert.SerializeObject(players));
+
                 return players.ToList();
             }
+            else
+            {
+                EnsureConnected();
 
-            EnsureConnected();
+                var players = Db.Query<TotalPlayer>("[kTVCSS].[dbo].[GetTotalPlayers]", commandType: CommandType.StoredProcedure, commandTimeout: 6000);
 
-            players = Db.Query<TotalPlayer>("[kTVCSS].[dbo].[GetTotalPlayers]", commandType: CommandType.StoredProcedure, commandTimeout: 6000);
+                foreach (var player in players)
+                {
+                    if (player.TelegramID is not null)
+                    {
+                        if (await GetPremiumInfoFromTelegram(player.TelegramID.Value))
+                        {
+                            player.IsPremiumVip = true;
+                            continue;
+                        }
+                    
+                        if (await GetInfoFromTelegram(player.TelegramID.Value))
+                        {
+                            player.IsVip = true;
+                            continue;
+                        }
+                    }
+                }
 
-            MemoryCache.Set("TotalPlayerListMemory", players);
+                MemoryCache.Set("TotalPlayerListMemory", players);
 
-            System.IO.File.WriteAllText("players.cache", JsonConvert.SerializeObject(players));
+                System.IO.File.WriteAllText("players.cache", JsonConvert.SerializeObject(players));
 
-            return players.ToList();
+                return players.ToList();
+            }
         }
 
         public Models.Players.Player Get(int id)
@@ -698,13 +772,13 @@ namespace kTVCSSBlazor.Db.Repository
             }
         }
 
-        public List<TotalPlayer> GetFriends(int player)
+        public async Task<List<TotalPlayer>> GetFriends(int player)
         {
             EnsureConnected();
 
             List<TotalPlayer> friends = [];
 
-            var all = Get();
+            var all = await Get();
 
             try
             {
@@ -844,11 +918,11 @@ namespace kTVCSSBlazor.Db.Repository
             return code;
         }
 
-        public List<TotalPlayer> GetOnlinePlayers()
+        public async Task<List<TotalPlayer>> GetOnlinePlayers()
         {
             List<TotalPlayer> online = [];
 
-            var all = Get();
+            var all = await Get();
 
             var onlineIds = all.Select(x => x.Id).ToList();
 
@@ -858,20 +932,7 @@ namespace kTVCSSBlazor.Db.Repository
 
             foreach (var i in o)
             {
-                if (kTVCSSHub.OnlineUsers.Where(x => x.Value.Id == i.Id).Any())
-                {
-                    i.IsOnline = true;
-                    var p = kTVCSSHub.OnlineUsers.FirstOrDefault(x => x.Value.Id == i.Id);
-
-                    if (p.Value is not null)
-                    {
-                        i.IsAdmin = p.Value.IsAdmin;
-                        i.IsVip = p.Value.IsVip;
-                        i.IsPremiumVip = p.Value.IsPremiumVip;
-                    }
-                    
-                }
-                else i.IsOnline = false;
+                i.IsOnline = true;
             }
 
             return o;

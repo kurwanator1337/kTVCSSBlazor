@@ -224,11 +224,11 @@
             Swal.FireAsync(options);
         }
 
-        hubConnection.On("RefreshFriends", () =>
+        hubConnection.On("RefreshFriends", async () =>
             {
                 displayBar = "block";
                 friends = new();
-                friends.AddRange(repo.Players.GetFriends(Id));
+                friends.AddRange(await repo.Players.GetFriends(Id));
                 requests = new();
                 requests.AddRange(repo.Players.GetFriendRequests(Id));
                 outgoings = new();
@@ -243,7 +243,7 @@
 
         Id = AuthProvider.CurrentUser.Id;
 
-        friends.AddRange(repo.Players.GetFriends(Id));
+        friends.AddRange(await repo.Players.GetFriends(Id));
 
         requests.AddRange(repo.Players.GetFriendRequests(Id));
 

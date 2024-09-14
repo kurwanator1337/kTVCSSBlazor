@@ -34,9 +34,17 @@
             </TemplateColumn>
             <TemplateColumn Title="Ник">
                 <CellTemplate>
-                    @if (context.Item.Block == 1) 
+                    @if (context.Item.IsAdmin)
                     {
                         <MudLink Color="Color.Error" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                    }
+                    else if (context.Item.IsPremiumVip)
+                    {
+                        <MudLink Color="Color.Info" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
+                    }
+                    else if (context.Item.IsVip)
+                    {
+                        <MudLink Color="Color.Warning" Href="@GetUserLink(context.Item.Id)">@context.Item.Name</MudLink>
                     }
                     else
                     {
@@ -98,15 +106,14 @@ else
         isMobile = await JS.InvokeAsync<bool>("detectMobileDevice");
     }
 
-    protected override void OnAfterRender(bool firstRender)
+    protected override async Task OnAfterRenderAsync(bool firstRender)
     {
         if (firstRender)
         {
             JS.InvokeVoidAsync("showLoadBar");
-            dataSource.AddRange(repo.Players.Get());
+            dataSource.AddRange(await repo.Players.Get());
             JS.InvokeVoidAsync("hideLoadBar");
         }
-        base.OnAfterRender(firstRender);
     }
 
     private Func<TotalPlayer, bool> QuickFilter => x =>

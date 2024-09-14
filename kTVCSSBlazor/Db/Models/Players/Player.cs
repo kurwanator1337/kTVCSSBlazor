@@ -28,6 +28,7 @@
         public bool IsAdmin { get; set; }
         public bool IsVip { get; set; }
         public bool IsPremiumVip { get; set; }
+        public long? TelegramID { get; set; }
     }
 
     public class BannedUser : TotalPlayer

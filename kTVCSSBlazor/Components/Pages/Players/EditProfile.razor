@@ -270,12 +270,15 @@
 
     private async Task Save()
     {
-        if (profile.Description.ToLower().Contains("<script") || profile.Description.ToLower().Contains("onclick"))
+        if (profile.Description is not null)
         {
-            await ShowAlert("Ошибка", "Описание не должно содержать блоки javascript!", 5000, SweetAlertIcon.Error, async () => { });
-            return;
+            if (profile.Description.ToLower().Contains("<script") || profile.Description.ToLower().Contains("onclick"))
+            {
+                await ShowAlert("Ошибка", "Описание не должно содержать блоки javascript!", 5000, SweetAlertIcon.Error, async () => { });
+                return;
+            }
         }
-
+        
         if (profile.Login != oldLogin)
         {
             if (!isVip)
