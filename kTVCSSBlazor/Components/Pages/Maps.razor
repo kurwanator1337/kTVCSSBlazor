@@ -9,6 +9,7 @@
 @inject IJSRuntime JS
 @inject SweetAlertService Swal
 @inject Context db
+@inject NavigationManager nav
 
 <PageTitle>kTVCSS @@ Карты</PageTitle>
 
@@ -38,6 +39,12 @@
     </MudItem>
 </MudGrid>
 
+<script>
+    function openUrl(url) {
+        window.open(url, "_blank");
+    }
+</script>
+
 @code {
     List<dynamic> maps = new List<dynamic>();
     private bool disabled = false;
@@ -45,24 +52,14 @@
     private async Task DownloadMap(string mapName)
     {
         disabled = true;
-
-        var filePath = Path.Combine("wwwroot", "maps", mapName + ".bsp");
-
-        if (File.Exists(filePath))
-        {
-            byte[] fileBytes = File.ReadAllBytes(filePath);
-
-            using (var outputStream = new MemoryStream(fileBytes))
-            {
-                using var streamRef = new DotNetStreamReference(stream: outputStream);
-
-                await JS.InvokeVoidAsync("downloadFileFromStream", mapName + ".bsp", streamRef);
-
-                disabled = false;
-
-                InvokeAsync(StateHasChanged);
-            }
-        }
+        
+        //nav.NavigateTo($"/maps/{mapName}.bsp", true, true);
+        
+        JS.InvokeVoidAsync("openUrl", $"/maps/{mapName}.bsp");
+        
+        disabled = false;
+        
+        InvokeAsync(StateHasChanged);
     }
 
     protected override Task OnInitializedAsync()

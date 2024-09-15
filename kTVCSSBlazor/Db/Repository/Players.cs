@@ -61,82 +61,31 @@ namespace kTVCSSBlazor.Db.Repository
 
             //kTVCSSHub.Instance.Clients.Client(requester).SendAsync("GetActionError", "test");
 
-            if (!refresh)
+            MemoryCache.TryGetValue("TotalPlayerListMemory", out IEnumerable<TotalPlayer> players);
+
+            if (players is not null)
             {
-                MemoryCache.TryGetValue("TotalPlayerListMemory", out IEnumerable<TotalPlayer> players);
+                return players.ToList();
+            }
 
-                if (players is not null)
-                {
-                    return players.ToList();
-                }
-
-                if (System.IO.File.Exists("players.cache"))
-                {
-                    players = JsonConvert.DeserializeObject<IEnumerable<TotalPlayer>>(System.IO.File.ReadAllText("players.cache"));
-
-                    MemoryCache.Set("TotalPlayerListMemory", players);
-
-                    return players.ToList();
-                }
-
-                EnsureConnected();
-
-                players = Db.Query<TotalPlayer>("[kTVCSS].[dbo].[GetTotalPlayers]", commandType: CommandType.StoredProcedure, commandTimeout: 6000);
-
-                foreach (var player in players)
-                {
-                    if (player.TelegramID is not null)
-                    {
-                        if (await GetPremiumInfoFromTelegram(player.TelegramID.Value))
-                        {
-                            player.IsPremiumVip = true;
-                            continue;
-                        }
-                    
-                        if (await GetInfoFromTelegram(player.TelegramID.Value))
-                        {
-                            player.IsVip = true;
-                            continue;
-                        }
-                    }
-                }
+            if (System.IO.File.Exists("players.cache"))
+            {
+                players = JsonConvert.DeserializeObject<IEnumerable<TotalPlayer>>(System.IO.File.ReadAllText("players.cache"));
 
                 MemoryCache.Set("TotalPlayerListMemory", players);
 
-                System.IO.File.WriteAllText("players.cache", JsonConvert.SerializeObject(players));
-
                 return players.ToList();
             }
-            else
-            {
-                EnsureConnected();
 
-                var players = Db.Query<TotalPlayer>("[kTVCSS].[dbo].[GetTotalPlayers]", commandType: CommandType.StoredProcedure, commandTimeout: 6000);
+            EnsureConnected();
 
-                foreach (var player in players)
-                {
-                    if (player.TelegramID is not null)
-                    {
-                        if (await GetPremiumInfoFromTelegram(player.TelegramID.Value))
-                        {
-                            player.IsPremiumVip = true;
-                            continue;
-                        }
-                    
-                        if (await GetInfoFromTelegram(player.TelegramID.Value))
-                        {
-                            player.IsVip = true;
-                            continue;
-                        }
-                    }
-                }
+            players = Db.Query<TotalPlayer>("[kTVCSS].[dbo].[GetTotalPlayers]", commandType: CommandType.StoredProcedure, commandTimeout: 6000);
 
-                MemoryCache.Set("TotalPlayerListMemory", players);
+            MemoryCache.Set("TotalPlayerListMemory", players);
 
-                System.IO.File.WriteAllText("players.cache", JsonConvert.SerializeObject(players));
+            System.IO.File.WriteAllText("players.cache", JsonConvert.SerializeObject(players));
 
-                return players.ToList();
-            }
+            return players.ToList();
         }
 
         public Models.Players.Player Get(int id)
@@ -647,7 +596,7 @@ namespace kTVCSSBlazor.Db.Repository
         {
             EnsureConnected();
 
-            return Db.Query<Models.Players.Fft>("SELECT P.ID, (CASE WHEN LOGIN IS NULL THEN NAME ELSE LOGIN END) AS Name, CONCAT('/images/ranks/', RANKNAME, '.png') as RankName, ROUND(CASE WHEN KDR IS NULL THEN 0 ELSE KDR END, 2) AS KDR, ROUND(CASE WHEN HSR IS NULL THEN 0 ELSE HSR END, 2) AS HSR, ROUND(CASE WHEN AVG IS NULL THEN 0 ELSE AVG END, 2) AS AVG, CAST(MATCHESPLAYED AS INT) AS MatchesTotal, CONCAT(ROUND(CASE WHEN WINRATE IS NULL THEN 0 ELSE WINRATE END, 2), '%') AS Winrate, PreferredRole, LastTeam, PrimeTime, StartPlayYear, Microphone, TeamSpeak, Discord FROM Players AS P WITH (NOLOCK) INNER JOIN PlayersFFT AS F WITH (NOLOCK) ON P.ID = F.ID").ToList();
+            return Db.Query<Models.Players.Fft>("SELECT P.ID, (CASE WHEN LOGIN IS NULL THEN NAME ELSE LOGIN END) AS Name, CONCAT('/images/ranks/', RANKNAME, '.png') as RankName, ROUND(CASE WHEN KDR IS NULL THEN 0 ELSE KDR END, 2) AS KDR, ROUND(CASE WHEN HSR IS NULL THEN 0 ELSE HSR END, 2) AS HSR, ROUND(CASE WHEN AVG IS NULL THEN 0 ELSE AVG END, 2) AS AVG, CAST(MATCHESPLAYED AS INT) AS MatchesTotal, CONCAT(ROUND(CASE WHEN WINRATE IS NULL THEN 0 ELSE WINRATE END, 2), '%') AS Winrate, PreferredRole, LastTeam, PrimeTime, StartPlayYear, Microphone, TeamSpeak, Discord FROM Players AS P WITH (NOLOCK) INNER JOIN PlayersFFT AS F WITH (NOLOCK) ON P.ID = F.ID ORDER BY MMR DESC").ToList();
         }
 
         public bool AddFriend(int player, int target)

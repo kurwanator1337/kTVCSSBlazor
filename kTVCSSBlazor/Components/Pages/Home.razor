@@ -116,7 +116,7 @@
                                 }
                                 else
                                 {
-                                    <video style="@videoWidth" src="@post.MediaUrl" />
+                                    <video controls style="width: 100%" src="@post.MediaUrl" />
                                 }
                             }
                         }
@@ -349,7 +349,7 @@
                             }
                             else
                             {
-                                <video src="@movie.Url" />
+                                <video controls style="width: 100%" src="@movie.Url" />
                             }
                             <MudText Class="py-4" Align="Align.Center">@movie.Description</MudText>
                         </MudPaper>

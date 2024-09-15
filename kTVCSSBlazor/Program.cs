@@ -30,7 +30,15 @@ using Blazorise;
 using Blazorise.Bootstrap5;
 using Blazorise.Icons.FontAwesome;
 
+#if DEBUG
+
+// нихуя не ждем
+
+#else
+
 Thread.Sleep(3000);
+
+#endif
 
 if (!File.Exists("reboot-web.sh"))
 {
@@ -118,12 +126,44 @@ if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Error", createScopeForErrors: true);
 }
-app.UseStaticFiles();
+
+app.UseStaticFiles(new StaticFileOptions()
+{
+    ServeUnknownFileTypes = true,
+    DefaultContentType = "application/octet-stream"
+});
 
 app.MapGet("/api/RequestUpdateTotalPlayers", (IRepository repository) => {
     Task task = new Task(async () =>
     {
-        repository.Players.Get(true);
+        using (SqlConnection db = new SqlConnection(builder.Configuration.GetConnectionString("db")))
+        {
+            db.Open();
+
+            var players = await db.QueryAsync<TotalPlayer>("[kTVCSS].[dbo].[GetTotalPlayers]", commandType: CommandType.StoredProcedure, commandTimeout: 6000);
+
+            foreach (var player in players)
+            {
+                /*if (player.TelegramID is not null)
+                {
+                    if (await repository.Vips.GetPremiumInfoFromTelegram(player.TelegramID.Value))
+                    {
+                        player.IsPremiumVip = true;
+                        continue;
+                    }
+                    
+                    if (await GetInfoFromTelegram(player.TelegramID.Value))
+                    {
+                        player.IsVip = true;
+                        continue;
+                    }
+                }*/
+            }
+            
+            kTVCSSBlazor.Db.Repository.Players.MemoryCache.Set("TotalPlayerListMemory", players);
+
+            File.WriteAllText("players.cache", JsonConvert.SerializeObject(players));
+        }
     });
     task.Start();
 });
